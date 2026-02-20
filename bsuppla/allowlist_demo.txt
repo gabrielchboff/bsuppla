@@ -1,0 +1,5 @@
+# demo suspicious items
+/usr/bin/xmrig
+/root/.ssh/id_rsa
+/etc/apk/repositories
+
