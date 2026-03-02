@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Concepts - bsuppla</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <img src="images/1.png" alt="bsuppla" style="height: 36px;">
+        <h1>bsuppla</h1>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">Overview</div>
+        <a href="index.html" class="nav-link">Home</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">Getting Started</div>
+        <a href="getting-started.html" class="nav-link">Installation</a>
+        <a href="usage.html" class="nav-link">Usage</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">Reference</div>
+        <a href="architecture.html" class="nav-link">Architecture</a>
+        <a href="signals.html" class="nav-link">Detected Signals</a>
+        <a href="concept.html" class="nav-link active">Concepts</a>
+      </div>
+    </nav>
+  </aside>
+
+  <main class="main-content">
+    <header class="header">
+      <div class="header-links">
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+          <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+          <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a href="https://github.com/gabrielchboff/bsuppla" target="_blank">GitHub</a>
+      </div>
+    </header>
+
+    <div class="content">
+      <h1>Technical Concepts</h1>
+      <p>This document provides a detailed technical explanation of the concepts, design patterns, and implementation details behind bsuppla.</p>
+
+      <div class="toc">
+        <h3>Table of Contents</h3>
+        <ul>
+          <li><a href="#intro">Introduction</a></li>
+          <li><a href="#design-principles">Design Principles</a></li>
+          <li><a href="#detector-trait">The Detector Trait</a></li>
+          <li><a href="#file-context">FileContext Structure</a></li>
+          <li><a href="#registry">DetectorRegistry</a></li>
+          <li><a href="#severity">Severity Scoring</a></li>
+          <li><a href="#analysis-pipeline">Analysis Pipeline</a></li>
+          <li><a href="#extensibility">Extensibility</a></li>
+          <li><a href="#safety">Safety Guarantees</a></li>
+        </ul>
+      </div>
+
+      <h2 id="intro">1. Introduction</h2>
+      <p>bsuppla is built on a foundation of well-established software engineering principles, combined with security-specific design patterns. This document explains the technical concepts that make bsuppla extensible, testable, and safe.</p>
+
+      <h2 id="design-principles">2. Design Principles</h2>
+      <p>The architecture follows several key design principles:</p>
+
+      <h3>2.1 Open/Closed Principle</h3>
+      <p>Software entities should be open for extension but closed for modification. In bsuppla, this means:</p>
+      <ul>
+        <li>Adding new detectors requires no changes to existing code</li>
+        <li>Each detector is isolated in its own module</li>
+        <li>New detection logic is added by implementing the <code>Detector</code> trait</li>
+      </ul>
+
+      <h3>2.2 Single Responsibility</h3>
+      <p>Each component has a single, well-defined responsibility:</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Responsibility</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>detector.rs</code></td>
+            <td>Core trait definitions and types</td>
+          </tr>
+          <tr>
+            <td><code>scanner.rs</code></td>
+            <td>Filesystem traversal and orchestration</td>
+          </tr>
+          <tr>
+            <td><code>detectors/*</code></td>
+            <td>Specific detection logic implementations</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>2.3 Dependency Inversion</h3>
+      <p>High-level modules do not depend on low-level modules. Both depend on abstractions. The scanner depends on the <code>Detector</code> trait, not concrete implementations.</p>
+
+      <h2 id="detector-trait">3. The Detector Trait</h3>
+      <p>The <code>Detector</code> trait is the foundation of bsuppla's extensibility:</p>
+
+      <pre><code>pub trait Detector: Send + Sync {
+    fn name(&self) -> &'static str;
+    fn detect(&self, ctx: &FileContext) -> Option&lt;Finding&gt;;
+    fn severity(&self) -> Severity {
+        Severity::Medium
+    }
+}</code></pre>
+
+      <h3>3.1 Trait Requirements</h3>
+      <ul>
+        <li><code>Send + Sync</code>: Ensures thread-safe usage in the detector registry</li>
+        <li><code>name()</code>: Returns a static string identifier for the detector</li>
+        <li><code>detect()</code>: Performs the actual detection logic, returning an optional Finding</li>
+        <li><code>severity()</code>: Default implementation returns Medium severity</li>
+      </ul>
+
+      <h3>3.2 Implementing a Detector</h3>
+      <p>Here's an example of implementing a custom detector:</p>
+
+      <pre><code>use crate::detector::{Detector, FileContext, Finding, Severity};
+
+pub struct CustomDetector;
+
+impl Detector for CustomDetector {
+    fn name(&self) -> &'static str {
+        "custom_detection"
+    }
+
+    fn detect(&self, ctx: &FileContext) -> Option&lt;Finding&gt; {
+        // Custom detection logic here
+        if ctx.is_executable && /* ... */ {
+            Some(Finding::new(
+                "custom_detection",
+                ctx.relative_path.clone(),
+                "details".to_string(),
+                Severity::High,
+            ))
+        } else {
+            None
+        }
+    }
+}</code></pre>
+
+      <h2 id="file-context">4. FileContext Structure</h2>
+      <p>The <code>FileContext</code> provides detectors with pre-computed file metadata:</p>
+
+      <pre><code>pub struct FileContext&lt;'a&gt; {
+    pub path: &amp;'a PathBuf,           // Absolute path
+    pub relative_path: &amp;'a PathBuf,   // Relative to scan root
+    pub mode: u32,                     // Unix permissions
+    pub is_executable: bool,
+    pub is_world_writable: bool,
+    pub is_world_readable: bool,
+    pub is_suid: bool,
+    pub is_sgid: bool,
+}</code></pre>
+
+      <h3>4.1 Why Pre-computed Metadata?</h3>
+      <p>Pre-computing metadata in the scanner provides several benefits:</p>
+      <ul>
+        <li><strong>Performance</strong>: Metadata is collected once per file</li>
+        <li><strong>Consistency</strong>: All detectors see the same data</li>
+        <li><strong>Simplicity</strong>: Detectors don't need to perform filesystem operations</li>
+      </ul>
+
+      <h3>4.2 Helper Methods</h3>
+      <p>FileContext provides helper methods for common operations:</p>
+
+      <pre><code>impl&lt;'a&gt; FileContext&lt;'a&gt; {
+    pub fn normalized_path(&self) -> String {
+        // Returns path with leading slash
+    }
+
+    pub fn file_name(&self) -> Option&lt;&amp;std::ffi::OsStr&gt; {
+        // Extracts filename from path
+    }
+
+    pub fn file_name_str(&self) -> Option&lt;String&gt; {
+        // Returns filename as String
+    }
+}</code></pre>
+
+      <h2 id="registry">5. DetectorRegistry</h2>
+      <p>The <code>DetectorRegistry</code> manages all registered detectors and provides the main detection interface:</p>
+
+      <pre><code>pub struct DetectorRegistry {
+    detectors: Vec&lt;Box&lt;dyn Detector&gt;&gt;,
+}
+
+impl DetectorRegistry {
+    pub fn new() -> Self;
+    pub fn register(&amp;mut self, detector: Box&lt;dyn Detector&gt;);
+    pub fn detect(&amp;self, ctx: &amp;FileContext) -> Vec&lt;Finding&gt;;
+}</code></pre>
+
+      <h3>5.1 Registration Pattern</h3>
+      <p>Detectors are registered in the <code>default_registry()</code> function:</p>
+
+      <pre><code>pub fn default_registry() -> DetectorRegistry {
+    let mut registry = DetectorRegistry::new();
+    registry.register(Box::new(permissions::SuidSgidDetector));
+    registry.register(Box::new(credentials::PrivateKeyDetector));
+    // ... more detectors
+    registry
+}</code></pre>
+
+      <h3>5.2 Detection Process</h3>
+      <p>When <code>detect()</code> is called:</p>
+      <ol>
+        <li>Iterates through all registered detectors</li>
+        <li>Calls each detector's <code>detect()</code> method</li>
+        <li>Collects all non-None results into a vector</li>
+      </ol>
+
+      <pre><code>pub fn detect(&amp;self, ctx: &amp;FileContext) -> Vec&lt;Finding&gt; {
+    self.detectors
+        .iter()
+        .filter_map(|d| d.detect(ctx))
+        .collect()
+}</code></pre>
+
+      <h2 id="severity">6. Severity Scoring</h2>
+      <p>The severity system provides a consistent way to assess the risk level of findings:</p>
+
+      <pre><code>pub enum Severity {
+    Critical,  // Score: 5
+    High,       // Score: 4
+    Medium,     // Score: 3
+    Low,        // Score: 2
+}
+
+impl Severity {
+    pub fn score(self) -> u32 {
+        match self {
+            Severity::Critical => 5,
+            Severity::High => 4,
+            Severity::Medium => 3,
+            Severity::Low => 2,
+        }
+    }
+}</code></pre>
+
+      <h3>6.1 Suspicion Level Calculation</h3>
+      <p>The overall suspicion level is computed by summing individual signal scores:</p>
+
+      <pre><code>fn suspicion_level(findings: &[&amp;Finding]) -> &amp;'static str {
+    let mut score = 0u32;
+    for f in findings {
+        score += f.severity.score();
+    }
+    
+    if score >= 10 { "high" }
+    else if score >= 4 { "medium" }
+    else { "low" }
+}</code></pre>
+
+      <h3>6.2 Severity Thresholds</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Score Range</th>
+            <th>Level</th>
+            <th>Exit Code</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>0-3</td>
+            <td>Low</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td>4-9</td>
+            <td>Medium</td>
+            <td>1</td>
+          </tr>
+          <tr>
+            <td>10+</td>
+            <td>High</td>
+            <td>2</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="analysis-pipeline">7. Analysis Pipeline</h2>
+      <p>The complete analysis pipeline consists of these stages:</p>
+
+      <h3>Stage 1: Image Loading</h3>
+      <p>Parses the Docker image tar archive and extracts manifest.json:</p>
+      <pre><code>pub fn read_manifest_from_image(image_path: &amp;str) -> Result&lt;String&gt; {
+    // Opens tar archive, finds manifest.json, returns contents
+}</code></pre>
+
+      <h3>Stage 2: Layer Verification</h3>
+      <p>Verifies all referenced layers exist:</p>
+      <pre><code>pub fn locate_layers(image_path: &amp;str, layer_paths: &[String]) -> Result&lt;Vec&lt;String&gt;&gt; {
+    // Checks each layer exists in tar
+}</code></pre>
+
+      <h3>Stage 3: Filesystem Extraction</h3>
+      <p>Extracts layer.tar files in order:</p>
+      <pre><code>pub fn build_filesystem(image_path: &amp;str, layers: &[String], output_dir: &amp;str) -> Result&lt;()&gt; {
+    // Extracts each layer, later layers override earlier
+}</code></pre>
+
+      <h3>Stage 4: Directory Traversal</h3>
+      <p>Walks the extracted filesystem and creates FileContext for each file:</p>
+      <pre><code>fn walk_dir(root: &amp;Path, path: &amp;Path) -> Result&lt;Vec&lt;Finding&gt;&gt; {
+    // Recursively traverse, collect metadata, query detectors
+}</code></pre>
+
+      <h3>Stage 5: Report Generation</h3>
+      <p>Filters findings, applies allowlist, compares with baseline, outputs results.</p>
+
+      <h2 id="extensibility">8. Extensibility</h2>
+      <p>Adding new detection capabilities is straightforward:</p>
+
+      <h3>8.1 Create a New Detector</h3>
+      <ol>
+        <li>Create a new file in <code>src/detectors/</code></li>
+        <li>Implement the <code>Detector</code> trait</li>
+        <li>Add tests for the detector</li>
+      </ol>
+
+      <h3>8.2 Register the Detector</h3>
+      <ol>
+        <li>Add the module to <code>detectors/mod.rs</code></li>
+        <li>Register in <code>default_registry()</code></li>
+      </ol>
+
+      <h3>8.3 Example: Adding a New Threat Detector</h3>
+      <pre><code>// src/detectors/new_threat.rs
+
+use crate::detector::{Detector, FileContext, Finding, Severity};
+
+pub struct NewThreatDetector;
+
+impl Detector for NewThreatDetector {
+    fn name(&self) -> &'static str {
+        "new_threat_detection"
+    }
+
+    fn detect(&self, ctx: &amp;FileContext) -> Option&lt;Finding&gt; {
+        // Detection logic
+        if /* threat condition */ {
+            Some(Finding::new(
+                "new_threat_detection",
+                ctx.relative_path.clone(),
+                "description".to_string(),
+                Severity::High,
+            ))
+        } else {
+            None
+        }
+    }
+}</code></pre>
+
+      <h2 id="safety">9. Safety Guarantees</h2>
+      <p>bsuppla is designed with safety as a primary concern:</p>
+
+      <h3>9.1 Zero Execution</h3>
+      <ul>
+        <li>Files are never opened with execute permissions</li>
+        <li>No code from the image is ever run</li>
+        <li>Analysis is strictly read-only</li>
+      </ul>
+
+      <h3>9.2 Memory Safety</h3>
+      <ul>
+        <li>Written in Rust - memory safe by default</li>
+        <li>No raw pointers or unsafe blocks in detection logic</li>
+        <li>All file operations use safe abstractions</li>
+      </ul>
+
+      <h3>9.3 Isolation</h3>
+      <ul>
+        <li>Each detector is isolated - one cannot affect another</li>
+        <li>Panics in detectors are contained</li>
+        <li>Analysis runs in a controlled order</li>
+      </ul>
+
+      <h3>9.4 No Network Access</h3>
+      <ul>
+        <li>Analysis phase requires no network connectivity</li>
+        <li>Only Docker operations (pull/save) require network</li>
+        <li>Can be run in air-gapped environments</li>
+      </ul>
+
+      <h2>10. Conclusion</h2>
+      <p>bsuppla demonstrates how sound software engineering principles can be applied to security tooling. The combination of:</p>
+      <ul>
+        <li>Trait-based plugin architecture</li>
+        <li>Clear separation of concerns</li>
+        <li>Comprehensive test coverage</li>
+        <li>Safety-first design</li>
+      </ul>
+      <p>Results in a tool that is both extensible and trustworthy.</p>
+
+    </div>
+
+    <footer class="footer">
+      <p>bsuppla &copy; 2024. MIT License.</p>
+    </footer>
+  </main>
+
+  <script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      const currentTheme = html.getAttribute('data-theme');
+      const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+      html.setAttribute('data-theme', newTheme === 'dark' ? '' : 'light');
+      localStorage.setItem('theme', newTheme);
+    }
+    
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  </script>
+</body>
+</html>

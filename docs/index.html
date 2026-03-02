@@ -28,6 +28,7 @@
         <div class="nav-section-title">Reference</div>
         <a href="architecture.html" class="nav-link">Architecture</a>
         <a href="signals.html" class="nav-link">Detected Signals</a>
+        <a href="concept.html" class="nav-link">Concepts</a>
       </div>
     </nav>
   </aside>
@@ -50,8 +51,8 @@
 
     <div class="content">
       <div class="hero">
-        <h1>Statically Analyze Docker Images</h1>
-        <p>bsuppla is a security tool that inspects Docker images without executing them. It scans for supply-chain indicators and suspicious artifacts.</p>
+        <h1>Static Docker Image Security Scanner</h1>
+        <p>bsuppla analyzes Docker images for supply-chain security threats without executing any code.</p>
         <div class="hero-buttons">
           <a href="getting-started.html" class="btn btn-primary">
             Get Started
@@ -64,9 +65,9 @@
       </div>
 
       <h2>What is bsuppla?</h2>
-      <p>bsuppla (Binary Supply Analysis) is a static analysis tool designed to inspect Docker container images for potential security threats without ever executing the container's contents. It analyzes the image layers, extracts the filesystem, and scans for suspicious artifacts that could indicate supply-chain attacks, backdoors, or compromised base images.</p>
+      <p><strong>bsuppla</strong> (Binary Supply Analysis) is a security tool that inspects Docker images for potential threats without running them. It scans for supply-chain attacks, suspicious binaries, exposed credentials, and other security indicators.</p>
       
-      <p>The tool is particularly useful for:</p>
+      <p>Perfect for:</p>
       <ul>
         <li>Security teams auditing container images before deployment</li>
         <li>CI/CD pipelines that need to validate base images</li>
@@ -77,12 +78,16 @@
       <h2>Key Features</h2>
       <div class="features">
         <div class="feature-card">
-          <h3>Static Analysis Only</h3>
-          <p>Never executes container contents. Inspects image tar and layers completely offline for maximum safety.</p>
+          <h3>Zero Execution</h3>
+          <p>Never runs any code from the image. Complete offline analysis for maximum safety.</p>
         </div>
         <div class="feature-card">
           <h3>Supply-Chain Detection</h3>
-          <p>Identifies suspicious ELF traits, hidden executables, crypto miners, private keys, and risky tools.</p>
+          <p>Identifies crypto miners, private keys, suspicious ELF traits, and risky tools.</p>
+        </div>
+        <div class="feature-card">
+          <h3>Extensible Design</h3>
+          <p>Plugin-based architecture following Open/Closed Principle. Add custom detectors easily.</p>
         </div>
         <div class="feature-card">
           <h3>Allowlist Support</h3>
@@ -90,25 +95,21 @@
         </div>
         <div class="feature-card">
           <h3>Baseline Comparison</h3>
-          <p>Compare current findings against a known-good baseline to detect new or missing artifacts.</p>
+          <p>Compare findings against a known-good baseline to track changes over time.</p>
         </div>
         <div class="feature-card">
-          <h3>Suspicion Levels</h3>
+          <h3>Severity Scoring</h3>
           <p>Outputs an overall suspicion level: low, medium, or high based on detected indicators.</p>
-        </div>
-        <div class="feature-card">
-          <h3>No Dependencies</h3>
-          <p>Runs with just a Rust toolchain and Docker. No external scanners or services required.</p>
         </div>
       </div>
 
       <h2>Why Static Analysis?</h2>
-      <p>Traditional container security tools often require running containers to analyze them, which introduces significant risks:</p>
+      <p>Traditional container security tools require running containers to analyze them, which introduces risks:</p>
       
       <ul>
-        <li><strong>Zero Execution Risk</strong> - Since bsuppla never runs any code from the image, there's no possibility of triggering malicious payloads or establishing reverse shells.</li>
-        <li><strong>Complete Visibility</strong> - Can analyze every file in the image including hidden files, configuration, and layer metadata.</li>
-        <li><strong>Fast & Offline</strong> - Works without network access. Docker pull/save is the only external operation needed.</li>
+        <li><strong>Zero Risk</strong> - Since bsuppla never runs any code from the image, there's no possibility of triggering malicious payloads.</li>
+        <li><strong>Complete Visibility</strong> - Can analyze every file in the image including hidden files and configuration.</li>
+        <li><strong>Fast & Offline</strong> - Works without network access. Docker pull/save is the only external operation.</li>
         <li><strong>CI/CD Friendly</strong> - Perfect for automated pipelines where executing containers isn't feasible.</li>
       </ul>
 
@@ -139,10 +140,31 @@ cargo run -- alpine:latest alpine.tar</code></pre>
       <ol>
         <li><strong>Image Acquisition</strong> - Uses Docker to pull and save the image as a tarball (or uses an existing tar).</li>
         <li><strong>Layer Extraction</strong> - Parses the tar archive and extracts each layer's filesystem.</li>
-        <li><strong>Binary Analysis</strong> - Scans for ELF files, checks permissions, entropy, and applies heuristics.</li>
+        <li><strong>Binary Analysis</strong> - Scans for ELF files, checks permissions, and applies detection heuristics.</li>
         <li><strong>Signal Detection</strong> - Matches findings against known patterns for crypto miners, keys, credentials, etc.</li>
         <li><strong>Report Generation</strong> - Outputs findings with severity levels and optional baseline comparison.</li>
       </ol>
+
+      <h2>Architecture</h2>
+      <p>The system uses a plugin-based detection framework:</p>
+      
+      <pre><code>┌─────────────────────────────────────────────────────────┐
+│                   DetectorRegistry                        │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐   │
+│  │Permission│ │   ELF    │ │Credential│ │  Risk    │   │
+│  │Detector  │ │ Analyzer │ │ Detector │ │ Detector │   │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘   │
+└─────────────────────────────────────────────────────────┘</code></pre>
+
+      <p>Each detector implements the <code>Detector</code> trait, enabling:</p>
+      <ul>
+        <li>Independent testing and validation</li>
+        <li>Extensible detection capabilities</li>
+        <li>Isolated security boundaries</li>
+        <li>Custom detector implementation</li>
+      </ul>
+
+      <p>For a detailed technical explanation of the design patterns and implementation, see the <a href="concept.html">Concepts</a> documentation.</p>
 
       <h2>Use Cases</h2>
       
@@ -152,7 +174,7 @@ cargo run -- alpine:latest alpine.tar</code></pre>
       
       <h3>CI/CD Integration</h3>
       <p>Add bsuppla to your pipeline to block vulnerable images:</p>
-      <pre><code># Example: Fail if high suspicion level
+      <pre><code># Fail if high suspicion level
 bsuppla $IMAGE $IMAGE.tar allowlist.txt
 if [ $? -eq 2 ]; then
   echo "High suspicion level detected - blocking deployment"
@@ -175,7 +197,6 @@ bsuppla alpine:latest alpine.tar allowlist.txt baseline.txt</code></pre>
   </main>
 
   <script>
-    // Theme toggle
     function toggleTheme() {
       const html = document.documentElement;
       const currentTheme = html.getAttribute('data-theme');
@@ -184,7 +205,6 @@ bsuppla alpine:latest alpine.tar allowlist.txt baseline.txt</code></pre>
       localStorage.setItem('theme', newTheme);
     }
     
-    // Load saved theme
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'light') {
       document.documentElement.setAttribute('data-theme', 'light');

@@ -49,175 +49,259 @@
     </header>
 
     <div class="content">
-      <h1>Detected Signals</h1>
-      <p>bsuppla detects various security indicators in Docker images. This page documents all the signals that can be flagged.</p>
+      <h1>Signal Taxonomy</h1>
+      <p>This document provides a comprehensive taxonomy of security signals detected by the bsuppla framework.</p>
 
       <div class="toc">
         <h3>Table of Contents</h3>
         <ul>
-          <li><a href="#elf">ELF Binary Indicators</a></li>
-          <li><a href="#credentials">Credentials &amp; Keys</a></li>
-          <li><a href="#tools">Suspicious Tools</a></li>
-          <li><a href="#startup">Startup &amp; Persistence</a></li>
-          <li><a href="#packages">Package Manager</a></li>
-          <li><a href="#severity">Severity Levels</a></li>
-          <li><a href="#suppress">Suppressing Findings</a></li>
+          <li><a href="#overview">Overview</a></li>
+          <li><a href="#elf">ELF Binary Signals</a></li>
+          <li><a href="#permissions">Permission Signals</a></li>
+          <li><a href="#credentials">Credential Signals</a></li>
+          <li><a href="#tools">Tool Signals</a></li>
+          <li><a href="#persistence">Persistence Signals</a></li>
+          <li><a href="#supply-chain">Supply-Chain Signals</a></li>
+          <li><a href="#severity">Severity Classification</a></li>
         </ul>
       </div>
 
-      <h2 id="elf">ELF Binary Indicators</h2>
-      <p>These signals relate to executable files and their characteristics.</p>
-      <div class="signals-grid">
-        <div class="signal-item">
-          <code>elf_suspicious</code>
-          <p>ELF binary with suspicious traits such as being stripped, static, or having packed sections. May indicate obfuscation.</p>
-        </div>
-        <div class="signal-item">
-          <code>elf_in_writable_dir</code>
-          <p>Executable found in a writable directory (/tmp, /var/tmp, /dev/shm). Could indicate privilege escalation or runtime injection.</p>
-        </div>
-        <div class="signal-item">
-          <code>suid_or_sgid_executable</code>
-          <p>Binary with SUID or SGID bit set, allowing execution with elevated (owner/group) privileges. Common for legitimate tools but risky if unnecessary.</p>
-        </div>
-        <div class="signal-item">
-          <code>world_writable</code>
-          <p>File or directory that is world-writable. Attackers can modify these to gain persistence or escalate privileges.</p>
-        </div>
-        <div class="signal-item">
-          <code>hidden_executable</code>
-          <p>Executable hidden in a dotfile (starts with .) outside standard locations. Often used to hide malicious code.</p>
-        </div>
-        <div class="signal-item">
-          <code>elf_outside_standard_paths</code>
-          <p>ELF binary located outside common bin/lib paths like /bin, /usr/bin, /lib. Unusual placement may indicate compromise.</p>
-        </div>
-      </div>
+      <h2 id="overview">1. Overview</h2>
+      <p>The bsuppla framework detects security-relevant artifacts through a multi-category signal taxonomy. Each signal represents a specific type of finding with associated risk characteristics.</p>
 
-      <h2 id="credentials">Credentials &amp; Keys</h2>
-      <p>These signals indicate potentially exposed sensitive data.</p>
-      <div class="signals-grid">
-        <div class="signal-item">
-          <code>private_key_candidate</code>
-          <p>Private key material found in .ssh/ directory or other sensitive locations. Exposure allows unauthorized access.</p>
-        </div>
-        <div class="signal-item">
-          <code>ssh_authorized_keys</code>
-          <p>SSH authorized_keys file present. Could allow passwordless remote access by attackers.</p>
-        </div>
-        <div class="signal-item">
-          <code>insecure_shadow</code>
-          <p>/etc/shadow has insecure permissions (world-readable or writable). Password hashes could be extracted.</p>
-        </div>
-        <div class="signal-item">
-          <code>credential_file</code>
-          <p>Credential files detected: .env*, .npmrc, .pypirc, .netrc, .aws/*, .kube/config, .docker/config.json. May contain API keys or secrets.</p>
-        </div>
-      </div>
+      <h2 id="elf">2. ELF Binary Signals</h2>
+      <p>Analysis of ELF (Executable and Linkable Format) binaries provides insight into binary characteristics that may indicate obfuscation or compromise.</p>
 
-      <h2 id="tools">Suspicious Tools</h2>
-      <p>Detection of tools that can be used for both legitimate and malicious purposes.</p>
-      <div class="signals-grid">
-        <div class="signal-item">
-          <code>risky_dual_use_tool</code>
-          <p>Dual-use tools that can be used for both legitimate and malicious purposes. Includes: curl, wget, nc, socat, ssh, tcpdump, strace, lsof, nmap, netcat, etc.</p>
-        </div>
-        <div class="signal-item">
-          <code>crypto_miner_candidate</code>
-          <p>Known cryptocurrency mining software detected (e.g., xmrig, cpuminer, nicehash, ethminer). Indicates the image may be compromised for cryptojacking.</p>
-        </div>
-      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Signal</th>
+            <th>Description</th>
+            <th>Analysis Method</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>elf_suspicious</code></td>
+            <td>ELF binary with stripped symbols, static linking, or suspicious sections (UPX, packer)</td>
+            <td>ELF header/section parsing</td>
+          </tr>
+          <tr>
+            <td><code>elf_in_unusual_location</code></td>
+            <td>Executable located outside standard paths (/bin, /usr/bin, /lib)</td>
+            <td>Path prefix matching</td>
+          </tr>
+        </tbody>
+      </table>
 
-      <h2 id="startup">Startup &amp; Persistence</h2>
-      <p>Signals related to persistence mechanisms.</p>
-      <div class="signals-grid">
-        <div class="signal-item">
-          <code>startup_script_present</code>
-          <p>Startup script detected in init, rc, or cron directories. Could indicate attempts at persistence or scheduled malicious activity.</p>
-        </div>
-      </div>
-
-      <h2 id="packages">Package Manager</h2>
-      <p>Detection of suspicious package manager configurations.</p>
-      <div class="signals-grid">
-        <div class="signal-item">
-          <code>apk_repository_suspicious</code>
-          <p>Suspicious APK repository configuration. Non-standard or unknown repositories could serve compromised packages.</p>
-        </div>
-        <div class="signal-item">
-          <code>apk_key_suspicious</code>
-          <p>Unusual APK key name detected. May indicate a malicious package source.</p>
-        </div>
-        <div class="signal-item">
-          <code>package_manager_suspicious</code>
-          <p>Suspicious package manager configuration or lockfile source (npm, pip, gem). Could indicate dependency confusion attacks.</p>
-        </div>
-      </div>
-
-      <h2 id="severity">Signal Severity</h2>
-      <p>Signals are grouped by potential severity to help prioritize remediation.</p>
-
-      <h3>High Severity</h3>
-      <p>These findings indicate immediate security risks:</p>
+      <h3>2.1 Detection Criteria</h3>
       <ul>
-        <li><code>crypto_miner_candidate</code> - Active cryptojacking</li>
-        <li><code>private_key_candidate</code> - Credential exposure</li>
-        <li><code>insecure_shadow</code> - Password hash exposure</li>
-        <li><code>credential_file</code> - Secrets exposure</li>
+        <li><strong>Stripped Binary</strong>: Missing .symtab or .strtab sections</li>
+        <li><strong>Static Binary</strong>: No PT_INTERP or PT_DYNAMIC program headers</li>
+        <li><strong>Packed Binary</strong>: Section names containing "upx", "packer", "packed"</li>
+        <li><strong>Unusual Location</strong>: Path does not start with /bin, /sbin, /usr/bin, /usr/sbin, /lib, /usr/lib</li>
       </ul>
 
-      <h3>Medium Severity</h3>
-      <p>These findings warrant investigation:</p>
-      <ul>
-        <li><code>suid_or_sgid_executable</code> - Potential privilege escalation</li>
-        <li><code>startup_script_present</code> - Persistence mechanism</li>
-        <li><code>risky_dual_use_tool</code> - Tool available for attack use</li>
-        <li><code>apk_repository_suspicious</code> - Supply-chain risk</li>
-      </ul>
+      <h2 id="permissions">3. Permission Signals</h2>
+      <p>Unix permission analysis identifies potentially dangerous file access configurations.</p>
 
-      <h3>Low Severity</h3>
-      <p>These findings may be acceptable depending on context:</p>
-      <ul>
-        <li><code>elf_suspicious</code> - Could be legitimate optimization</li>
-        <li><code>hidden_executable</code> - May be intentional</li>
-        <li><code>elf_outside_standard_paths</code> - Could be intentional</li>
-      </ul>
+      <table>
+        <thead>
+          <tr>
+            <th>Signal</th>
+            <th>Description</th>
+            <th>Threshold</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>suid_or_sgid_executable</code></td>
+            <td>Executable with SUID (4000) or SGID (2000) bit set</td>
+            <td>mode &amp; 0o6000 != 0</td>
+          </tr>
+          <tr>
+            <td><code>world_writable_executable</code></td>
+            <td>Executable that is world-writable</td>
+            <td>mode &amp; 0o002 != 0</td>
+          </tr>
+          <tr>
+            <td><code>executable_in_writable_dir</code></td>
+            <td>Executable located in /tmp, /var/tmp, /dev/shm, /run, /var/run</td>
+            <td>Path prefix matching</td>
+          </tr>
+          <tr>
+            <td><code>hidden_executable</code></td>
+            <td>Executable with filename starting with '.'</td>
+            <td>Filename starts with '.'</td>
+          </tr>
+          <tr>
+            <td><code>insecure_shadow_permissions</code></td>
+            <td>/etc/shadow with world-readable or writable permissions</td>
+            <td>Path + permission check</td>
+          </tr>
+        </tbody>
+      </table>
 
-      <h2 id="suppress">Suppressing Findings</h2>
-      <p>Use the <a href="usage.html">allowlist</a> feature to suppress known-safe findings. You can allowlist by path or by signal type:</p>
+      <h2 id="credentials">4. Credential Signals</h2>
+      <p>Detection of exposed sensitive data including cryptographic keys and authentication artifacts.</p>
 
-      <h3>Path-Based Allowlist</h3>
-      <pre><code># Suppress all findings for specific paths
-/bin/busybox
-/sbin/apk
-/usr/lib/libcrypto.so.3</code></pre>
+      <table>
+        <thead>
+          <tr>
+            <th>Signal</th>
+            <th>Description</th>
+            <th>Detection Method</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>private_key_candidate</code></td>
+            <td>SSH private key files: id_rsa, id_ed25519, id_dsa, id_ecdsa, *.pem in ~/.ssh/</td>
+            <td>Path pattern + filename matching</td>
+          </tr>
+          <tr>
+            <td><code>authorized_keys_present</code></td>
+            <td>SSH authorized_keys file at ~/.ssh/authorized_keys</td>
+            <td>Exact path match</td>
+          </tr>
+          <tr>
+            <td><code>credential_file</code></td>
+            <td>Configuration files containing credentials: .env, .npmrc, .pypirc, .netrc, .aws/, .kube/config, .docker/config.json</td>
+            <td>Filename + path combination</td>
+          </tr>
+        </tbody>
+      </table>
 
-      <h3>Signal-Type Allowlist</h3>
-      <pre><code># Suppress specific signal types with patterns
-elf_suspicious: /usr/lib/*
-suid_or_sgid_executable: /usr/bin/passwd
-suid_or_sgid_executable: /usr/bin/sudo</code></pre>
+      <h2 id="tools">5. Tool Signals</h2>
+      <p>Identification of tools with dual-use potential or known malicious associations.</p>
 
-      <h3>Combined Allowlist</h3>
-      <pre><code># Example allowlist.txt
-# Suppress specific paths
-/bin/busybox
-/sbin/apk
+      <table>
+        <thead>
+          <tr>
+            <th>Signal</th>
+            <th>Known Indicators</th>
+            <th>Risk Category</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>risky_tool_present</code></td>
+            <td>curl, wget, nc, ncat, netcat, socat, ssh, scp, sftp, strace, tcpdump</td>
+            <td>Dual-use</td>
+          </tr>
+          <tr>
+            <td><code>crypto_miner_candidate</code></td>
+            <td>xmrig, xmr-stak, minerd, cgminer, bfgminer, kawpowminer, cryptonight</td>
+            <td>Cryptojacking</td>
+          </tr>
+        </tbody>
+      </table>
 
-# Suppress signal types with patterns
-elf_suspicious: /usr/lib/*
-risky_dual_use_tool: /usr/bin/curl
-risky_dual_use_tool: /usr/bin/wget</code></pre>
+      <h2 id="persistence">6. Persistence Signals</h2>
+      <p>Detection of mechanisms that enable persistent execution across reboots or container restarts.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Signal</th>
+            <th>Path Patterns</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>startup_script_present</code></td>
+            <td>/etc/init.d/*, /etc/rc*, /etc/cron*, /var/spool/cron/*, /etc/crontab</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="supply-chain">7. Supply-Chain Signals</h2>
+      <p>Analysis of package manager configurations that may indicate compromised or malicious package sources.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Signal</th>
+            <th>Configuration Files</th>
+            <th>Anomaly Detection</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>package_manager_config_suspicious</code></td>
+            <td>/etc/npmrc, ~/.npmrc, /etc/pip.conf, ~/.pip/pip.conf, /etc/gemrc, ~/.gemrc</td>
+            <td>Non-standard registry URLs</td>
+          </tr>
+          <tr>
+            <td><code>lockfile_suspicious_source</code></td>
+            <td>package-lock.json, yarn.lock, Pipfile.lock, poetry.lock, Gemfile.lock</td>
+            <td>git+ or http:// sources</td>
+          </tr>
+          <tr>
+            <td><code>apk_repository_suspicious</code></td>
+            <td>/etc/apk/repositories</td>
+            <td>Non-alpine repositories, file:// URLs</td>
+          </tr>
+          <tr>
+            <td><code>apk_key_unusual</code></td>
+            <td>/etc/apk/keys/*</td>
+            <td>Non-.rsa.pub key filenames</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="severity">8. Severity Classification</h2>
+      <p>Each signal is assigned a severity level based on potential impact and exploitability.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Level</th>
+            <th>Score</th>
+            <th>Signals</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="severity-critical">Critical</span></td>
+            <td>5</td>
+            <td>private_key_candidate, credential_file, crypto_miner_candidate</td>
+          </tr>
+          <tr>
+            <td><span class="severity-high">High</span></td>
+            <td>4</td>
+            <td>suid_or_sgid_executable, world_writable_executable, insecure_shadow_permissions</td>
+          </tr>
+          <tr>
+            <td><span class="severity-medium">Medium</span></td>
+            <td>3</td>
+            <td>package_manager_config_suspicious, apk_repository_suspicious, apk_key_unusual</td>
+          </tr>
+          <tr>
+            <td><span class="severity-low">Low</span></td>
+            <td>2</td>
+            <td>elf_suspicious, elf_in_unusual_location, executable_in_writable_dir, startup_script_present</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>8.1 Suspicion Level Calculation</h3>
+      <p>The overall suspicion level is computed by summing individual signal scores:</p>
+      
+      <pre><code>total_score = Σ signal_score
+suspicion_level = 
+  if total_score >= 10: "high"
+  else if total_score >= 4: "medium"
+  else: "low"</code></pre>
 
     </div>
 
     <footer class="footer">
-      <p>bsuppla &copy; 2024. Released under MIT License.</p>
+      <p>bsuppla &copy; 2024. MIT License.</p>
     </footer>
   </main>
 
   <script>
-    // Theme toggle
     function toggleTheme() {
       const html = document.documentElement;
       const currentTheme = html.getAttribute('data-theme');
@@ -226,7 +310,6 @@ risky_dual_use_tool: /usr/bin/wget</code></pre>
       localStorage.setItem('theme', newTheme);
     }
     
-    // Load saved theme
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'light') {
       document.documentElement.setAttribute('data-theme', 'light');

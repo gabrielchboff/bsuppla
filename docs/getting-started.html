@@ -28,6 +28,7 @@
         <div class="nav-section-title">Reference</div>
         <a href="architecture.html" class="nav-link">Architecture</a>
         <a href="signals.html" class="nav-link">Detected Signals</a>
+        <a href="concept.html" class="nav-link">Concepts</a>
       </div>
     </nav>
   </aside>
@@ -49,177 +50,140 @@
     </header>
 
     <div class="content">
-      <h1>Installation</h1>
-      <p>Get bsuppla up and running on your system. Follow the instructions below based on your setup.</p>
+      <h1>System Overview</h1>
+      <p>This document provides setup and configuration instructions for the bsuppla static analysis framework.</p>
 
       <div class="toc">
         <h3>Table of Contents</h3>
         <ul>
-          <li><a href="#requirements">Requirements</a></li>
-          <li><a href="#build">Build from Source</a></li>
-          <li><a href="#install">Install</a></li>
-          <li><a href="#verify">Verify Installation</a></li>
-          <li><a href="#env">Environment Variables</a></li>
-          <li><a href="#troubleshooting">Troubleshooting</a></li>
+          <li><a href="#prerequisites">Prerequisites</a></li>
+          <li><a href="#build">Build Process</a></li>
+          <li><a href="#configuration">Configuration</a></li>
+          <li><a href="#environment">Environment Variables</a></li>
         </ul>
       </div>
 
-      <h2 id="requirements">Requirements</h2>
-      <p>Before installing bsuppla, ensure your system meets the following requirements:</p>
+      <h2 id="prerequisites">1. Prerequisites</h2>
+      <p>The following system requirements must be satisfied before building bsuppla:</p>
       
       <table>
         <thead>
           <tr>
-            <th>Requirement</th>
-            <th>Description</th>
-            <th>Notes</th>
+            <th>Component</th>
+            <th>Version</th>
+            <th>Purpose</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td><strong>Rust Toolchain</strong></td>
-            <td>Stable Rust (1.70+)</td>
-            <td>Required for building from source</td>
+            <td>1.70+ (stable)</td>
+            <td>Compilation and execution</td>
           </tr>
           <tr>
             <td><strong>Docker</strong></td>
-            <td>Docker daemon running</td>
-            <td>Required for pulling/saving images</td>
+            <td>Latest</td>
+            <td>Image acquisition</td>
           </tr>
           <tr>
             <td><strong>Operating System</strong></td>
-            <td>Linux, macOS, Windows (WSL2)</td>
-            <td>Primary target is Linux</td>
-          </tr>
-          <tr>
-            <td><strong>Memory</strong></td>
-            <td>4GB+ RAM recommended</td>
-            <td>For larger container images</td>
+            <td>Linux (primary)</td>
+            <td>Execution environment</td>
           </tr>
         </tbody>
       </table>
 
-      <h2 id="build">Build from Source</h2>
-      <p>The recommended way to install bsuppla is building from source. This ensures you have the latest version and allows you to inspect the code.</p>
+      <h2 id="build">2. Build Process</h2>
+      <p>The system is built from source using Cargo, the Rust package manager.</p>
 
-      <h3>Step 1: Clone the Repository</h3>
+      <h3>2.1 Repository Clone</h3>
       <pre><code>git clone https://github.com/gabrielchboff/bsuppla.git
 cd bsuppla</code></pre>
 
-      <h3>Step 2: Build the Project</h3>
+      <h3>2.2 Compilation</h3>
       <pre><code>cd bsuppla/bsuppla
 cargo build --release</code></pre>
-      
-      <p>The build process will:</p>
-      <ul>
-        <li>Download and compile all Rust dependencies</li>
-        <li>Optimize the binary for release</li>
-        <li>Produce a single static executable</li>
-      </ul>
 
-      <h3>Binary Location</h3>
-      <p>After building, the binary will be located at:</p>
+      <h3>2.3 Output Binary</h3>
+      <p>Following successful compilation, the executable is located at:</p>
       <pre><code>bsuppla/bsuppla/target/release/bsuppla</code></pre>
 
-      <h2 id="install">Install</h2>
-      <p>You can install bsuppla using the provided install script or Make:</p>
+      <h3>2.4 Installation</h3>
+      <pre><code># System-wide installation (requires privileges)
+sudo cp target/release/bsuppla /usr/local/bin/
 
-      <h3>Using install script</h3>
-      <pre><code>bash scripts/install.sh</code></pre>
+# Or use the provided installer
+bash scripts/install.sh</code></pre>
 
-      <h3>Using Make</h3>
-      <pre><code>make install</code></pre>
+      <h2 id="configuration">3. Configuration</h2>
+      <p>bsuppla operates with minimal configuration. All parameters are passed via command-line arguments or environment variables.</p>
 
-      <div class="note">
-        <div class="note-title">Note</div>
-        <p>The install script copies the binary to <code>/usr/local/bin</code> by default. You may need sudo privileges depending on your system configuration.</p>
-      </div>
+      <h3>3.1 Command-Line Interface</h3>
+      <pre><code>bsuppla &lt;IMAGE&gt; &lt;OUTPUT_TAR&gt; [ALLOWLIST] [BASELINE]
 
-      <h3>Custom Installation Path</h3>
-      <p>To install to a custom directory, set the <code>PREFIX</code> variable:</p>
-      <pre><code>PREFIX=$HOME/.local bash scripts/install.sh</code></pre>
+Arguments:
+  IMAGE           Docker image name (e.g., alpine:latest)
+  OUTPUT_TAR      Path for docker save output
+  ALLOWLIST       Optional allowlist file
+  BASELINE        Optional baseline file for comparison</code></pre>
 
-      <h2 id="verify">Verify Installation</h2>
-      <p>Check that bsuppla is installed correctly:</p>
-      <pre><code>bsuppla --help</code></pre>
-      
-      <p>You should see output similar to:</p>
-      <pre><code>bsuppla 1.0.0
-Statically analyze Docker images without executing them
-
-USAGE:
-    bsuppla &lt;IMAGE&gt; &lt;OUTPUT_TAR&gt; [ALLOWLIST] [BASELINE]
-
-For more information, try --help</code></pre>
-
-      <h2 id="env">Environment Variables</h2>
-      <p>bsuppla supports the following optional environment variables:</p>
+      <h2 id="environment">4. Environment Variables</h2>
+      <p>Runtime behavior can be modified through environment variables:</p>
 
       <table>
         <thead>
           <tr>
             <th>Variable</th>
-            <th>Description</th>
-            <th>Default</th>
+            <th>Values</th>
+            <th>Function</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td><code>BSUPPLA_SKIP_DOCKER=1</code></td>
-            <td>Skip docker pull/save - useful for scanning an existing tar file</td>
-            <td>false</td>
+            <td><code>BSUPPLA_SKIP_DOCKER</code></td>
+            <td>1, true</td>
+            <td>Skip docker pull/save operations</td>
           </tr>
           <tr>
-            <td><code>BSUPPLA_SKIP_SCAN=1</code></td>
-            <td>Skip scanning after extraction</td>
-            <td>false</td>
+            <td><code>BSUPPLA_SKIP_SCAN</code></td>
+            <td>1, true</td>
+            <td>Skip analysis stage</td>
           </tr>
           <tr>
-            <td><code>BSUPPLA_OUTPUT_DIR=/path</code></td>
-            <td>Set extraction directory</td>
-            <td>container_fs</td>
+            <td><code>BSUPPLA_OUTPUT_DIR</code></td>
+            <td>path</td>
+            <td>Extraction directory (default: container_fs)</td>
           </tr>
         </tbody>
       </table>
 
-      <h3>Usage Examples</h3>
+      <h3>4.1 Usage Examples</h3>
       
-      <h4>Scan existing tar</h4>
-      <pre><code>BSUPPLA_SKIP_DOCKER=1 bsuppla alpine:latest alpine.tar</code></pre>
+      <h4>Standard Analysis</h4>
+      <pre><code>bsuppla alpine:latest alpine.tar</code></pre>
       
-      <h4>Extract only (no scan)</h4>
-      <pre><code>BSUPPLA_SKIP_SCAN=1 bsuppla alpine:latest alpine.tar</code></pre>
+      <h4>With Allowlist</h4>
+      <pre><code>bsuppla alpine:latest alpine.tar allowlist.txt</code></pre>
       
-      <h4>Custom output directory</h4>
-      <pre><code>BSUPPLA_OUTPUT_DIR=/tmp/myfs bsuppla alpine:latest alpine.tar</code></pre>
+      <h4>Baseline Comparison</h4>
+      <pre><code>bsuppla alpine:latest alpine.tar allowlist.txt baseline.txt</code></pre>
+      
+      <h4>Skip Docker (existing tar)</h4>
+      <pre><code>BSUPPLA_SKIP_DOCKER=1 bsuppla alpine:latest existing.tar</code></pre>
 
-      <h2 id="troubleshooting">Troubleshooting</h2>
-      
-      <h3>"command not found" after installation</h3>
-      <p>Ensure the installation directory is in your PATH:</p>
-      <pre><code>export PATH="$PATH:/usr/local/bin"</code></pre>
-      
-      <h3>Docker permission denied</h3>
-      <p>Ensure your user has permission to run Docker commands:</p>
-      <pre><code>sudo usermod -aG docker $USER</code></pre>
-      
-      <h3>Build errors</h3>
-      <p>Ensure Rust is up to date:</p>
-      <pre><code>rustup update
-cargo update</code></pre>
-
-      <h2>Next Steps</h2>
-      <p>Now that you have bsuppla installed, head over to the <a href="usage.html">Usage</a> guide to learn how to scan Docker images.</p>
+      <h2>5. Verification</h2>
+      <p>Verify installation:</p>
+      <pre><code>bsuppla --version
+# Output: bsuppla x.y.z</code></pre>
 
     </div>
 
     <footer class="footer">
-      <p>bsuppla &copy; 2024. Released under MIT License.</p>
+      <p>bsuppla &copy; 2024. MIT License.</p>
     </footer>
   </main>
 
   <script>
-    // Theme toggle
     function toggleTheme() {
       const html = document.documentElement;
       const currentTheme = html.getAttribute('data-theme');
@@ -228,7 +192,6 @@ cargo update</code></pre>
       localStorage.setItem('theme', newTheme);
     }
     
-    // Load saved theme
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'light') {
       document.documentElement.setAttribute('data-theme', 'light');

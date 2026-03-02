@@ -28,6 +28,7 @@
         <div class="nav-section-title">Reference</div>
         <a href="architecture.html" class="nav-link active">Architecture</a>
         <a href="signals.html" class="nav-link">Detected Signals</a>
+        <a href="concept.html" class="nav-link">Concepts</a>
       </div>
     </nav>
   </aside>
@@ -49,237 +50,385 @@
     </header>
 
     <div class="content">
-      <h1>Architecture</h1>
-      <p>Understanding how bsuppla works under the hood.</p>
+      <h1>System Architecture</h1>
+      <p>This document provides a detailed architectural description of the bsuppla static analysis framework.</p>
 
       <div class="toc">
         <h3>Table of Contents</h3>
         <ul>
-          <li><a href="#goal">Goal</a></li>
-          <li><a href="#scope">Scope</a></li>
-          <li><a href="#components">Components</a></li>
-          <li><a href="#pipeline">Processing Pipeline</a></li>
-          <li><a href="#trust">Trust Model</a></li>
-          <li><a href="#threats">Threats Addressed</a></li>
+          <li><a href="#design-goals">Design Goals</a></li>
+          <li><a href="#component-overview">Component Overview</a></li>
+          <li><a href="#detector-framework">Detector Framework</a></li>
+          <li><a href="#processing-pipeline">Processing Pipeline</a></li>
+          <li><a href="#trust-model">Trust Model</a></li>
+          <li><a href="#extensibility">Extensibility</a></li>
         </ul>
       </div>
 
-      <h2 id="goal">Goal</h2>
-      <p>Statically analyze Docker images <strong>without executing them</strong>, identifying suspicious binaries that may indicate supply-chain attacks.</p>
+      <h2 id="design-goals">1. Design Goals</h2>
+      <p>The architecture is driven by the following design requirements:</p>
       
-      <p>The primary objectives are:</p>
-      <ul>
-        <li>Provide visibility into container image contents without runtime risk</li>
-        <li>Detect common indicators of compromise in container images</li>
-        <li>Enable automated security scanning in CI/CD pipelines</li>
-        <li>Support allowlisting and baseline comparisons for operational flexibility</li>
-      </ul>
-
-      <h2 id="scope">Scope</h2>
       <table>
         <thead>
           <tr>
-            <th>Category</th>
-            <th>Included</th>
-            <th>Excluded</th>
+            <th>Goal</th>
+            <th>Description</th>
+            <th>Priority</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td><strong>Input</strong></td>
-            <td>Docker image as .tar</td>
-            <td>Running containers</td>
+            <td><strong>Zero Execution</strong></td>
+            <td>Never execute any code from analyzed images</td>
+            <td>Critical</td>
           </tr>
           <tr>
-            <td><strong>Analysis</strong></td>
-            <td>Static file inspection</td>
-            <td>Runtime behavior</td>
+            <td><strong>Extensibility</strong></td>
+            <td>Support custom detection plugins without core modification</td>
+            <td>High</td>
           </tr>
           <tr>
-            <td><strong>Detection</strong></td>
-            <td>Heuristic patterns</td>
-            <td>Malware signatures</td>
+            <td><strong>Testability</strong></td>
+            <td>Each detector must be independently testable</td>
+            <td>High</td>
           </tr>
           <tr>
-            <td><strong>Intelligence</strong></td>
-            <td>Built-in heuristics</td>
-            <td>Machine learning</td>
+            <td><strong>Offline Operation</strong></td>
+            <td>No network dependencies during analysis</td>
+            <td>Medium</td>
+          </tr>
+          <tr>
+            <td><strong>Minimal Dependencies</strong></td>
+            <td>Self-contained, no external services required</td>
+            <td>Medium</td>
           </tr>
         </tbody>
       </table>
 
-      <h2 id="components">Components</h2>
+      <h2 id="component-overview">2. Component Overview</h2>
 
-      <h3>1. Image Loader</h3>
-      <p>Reads the Docker image tar archive and parses the manifest to identify individual layers. Handles both v1 and v2 image formats.</p>
-      <ul>
-        <li>Parses manifest.json</li>
-        <li>Identifies layer.tar files</li>
-        <li>Extracts image configuration</li>
-      </ul>
+      <h3>2.1 Core Components</h3>
 
-      <h3>2. Layer Extractor</h3>
-      <p>Extracts each layer's <code>layer.tar</code> and reconstructs the complete filesystem by layering them in order. Handles file permission preservation and symbolic links.</p>
-      <ul>
-        <li>Extracts layer contents</li>
-        <li>Handles layer ordering</li>
-        <li>Preserves permissions/ownership</li>
-        <li>Processes whiteouts</li>
-      </ul>
-
-      <h3>3. Binary Analyzer</h3>
-      <p>Scans the extracted filesystem for various security indicators. This is the core detection engine.</p>
-      <ul>
-        <li>ELF file detection and analysis</li>
-        <li>File permission checks</li>
-        <li>Entropy calculation for packed binaries</li>
-        <li>Pattern matching for known threats</li>
-      </ul>
-
-      <h3>4. Signal Detector</h3>
-      <p>Matches findings against known threat patterns and categorizes them by severity.</p>
-      <ul>
-        <li>Crypto miner detection</li>
-        <li>Private key identification</li>
-        <li>Suspicious tool detection</li>
-        <li>Credential file scanning</li>
-      </ul>
-
-      <h3>5. Report Generator</h3>
-      <p>Compiles findings into a human-readable report with suspicion levels and optional baseline comparison.</p>
-
-      <h2 id="pipeline">Processing Pipeline</h2>
-      <p>The following diagram shows the complete processing flow:</p>
-      
-      <div class="diagram">
-        <pre><code>+----------------------+
-| Docker Image (.tar)  |
-+----------+-----------+
-           |
-           v
-+----------------------+
-| Image Loader         |
-| - Reads tar archive  |
-| - Parses manifest    |
-+----------+-----------+
-           |
-           v
-+----------------------+
-| Layer Extractor      |
-| - Extracts layer.tar |
-| - Builds filesystem  |
-| - Handles whiteouts   |
-+----------+-----------+
-           |
-           v
-+----------------------+
-| Binary Analyzer      |
-| - Detects ELF files  |
-| - Checks permissions |
-| - Calculates entropy |
-| - Applies heuristics |
-+----------+-----------+
-           |
-           v
-+----------------------+
-| Signal Detector      |
-| - Pattern matching   |
-| - Threat categorization|
-| - Severity scoring   |
-+----------+-----------+
-           |
-           v
-+----------------------+
-| Report Generator     |
-| - Format output       |
-| - Apply allowlist    |
-| - Compare baseline   |
-+----------------------+</code></pre>
+      <div class="component-diagram">
+        <pre><code>bsuppla/
+├── main.rs              # Entry point and orchestration
+├── image.rs             # Docker image tar parsing
+├── layers.rs            # OCI layer extraction
+├── fs.rs                # Filesystem reconstruction
+├── manifest.rs          # Image manifest parsing
+├── scanner.rs           # Analysis orchestration
+├── detector.rs          # Core trait definitions
+└── detectors/           # Detection plugins
+    ├── mod.rs          # Registry and composition
+    ├── permissions.rs  # Permission-based detection
+    ├── elf.rs          # ELF binary analysis
+    ├── credentials.rs  # Credential detection
+    ├── package_managers.rs  # Package config analysis
+    └── risky.rs        # Threat pattern matching
+</code></pre>
       </div>
 
-      <h3>Pipeline Details</h3>
-      
-      <h4>Stage 1: Image Acquisition</h4>
-      <p>bsuppla uses Docker to pull and save the image, or can work with an existing tar file. This stage is skippable via <code>BSUPPLA_SKIP_DOCKER</code>.</p>
-      
-      <h4>Stage 2: Extraction</h4>
-      <p>Each layer is extracted and the filesystem is reconstructed. Files in later layers override earlier ones. Whiteout files mark deleted files.</p>
-      
-      <h4>Stage 3: Analysis</h4>
-      <p>The analyzer walks the filesystem and applies various checks to each file. Key checks include:</p>
-      <ul>
-        <li>Is the file an ELF binary?</li>
-        <li>Is it stripped, static, or packed?</li>
-        <li>Are permissions suspicious (SUID, world-writable)?</li>
-        <li>Is it in an unusual location?</li>
-      </ul>
-      
-      <h4>Stage 4: Detection</h4>
-      <p>Findings are matched against known threat patterns. Each match produces a signal with type, path, and context.</p>
-      
-      <h4>Stage 5: Reporting</h4>
-      <p>Final report is generated, applying any allowlist entries and comparing against baseline if provided.</p>
+      <h3>2.2 Component Responsibilities</h3>
 
-      <h2 id="trust">Trust Model</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Responsibility</th>
+            <th>Public API</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>image.rs</code></td>
+            <td>Parse Docker image tar archives</td>
+            <td><code>read_manifest_from_image()</code></td>
+          </tr>
+          <tr>
+            <td><code>layers.rs</code></td>
+            <td>Verify layer existence in tar</td>
+            <td><code>locate_layers()</code></td>
+          </tr>
+          <tr>
+            <td><code>fs.rs</code></td>
+            <td>Extract and reconstruct filesystem</td>
+            <td><code>build_filesystem()</code></td>
+          </tr>
+          <tr>
+            <td><code>scanner.rs</code></td>
+            <td>Orchestrate analysis pipeline</td>
+            <td><code>scan_filesystem()</code></td>
+          </tr>
+          <tr>
+            <td><code>detector.rs</code></td>
+            <td>Define detector trait and types</td>
+            <td><code>Detector</code> trait, <code>Finding</code></td>
+          </tr>
+          <tr>
+            <td><code>detectors/</code></td>
+            <td>Implement detection logic</td>
+            <td><code>default_registry()</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="detector-framework">3. Detector Framework</h2>
+
+      <p>The detector framework implements the <strong>Open/Closed Principle</strong>: open for extension, closed for modification. This is achieved through a trait-based plugin architecture.</p>
+
+      <h3>3.1 Core Traits</h3>
+
+      <pre><code>// detector.rs
+
+pub trait Detector: Send + Sync {
+    fn name(&self) -> &'static str;
+    fn detect(&self, ctx: &FileContext) -> Option&lt;Finding&gt;;
+    fn severity(&self) -> Severity {
+        Severity::Medium
+    }
+}
+
+pub struct DetectorRegistry {
+    detectors: Vec&lt;Box&lt;dyn Detector&gt;&gt;,
+}
+
+impl DetectorRegistry {
+    pub fn register(&mut self, detector: Box&lt;dyn Detector&gt;);
+    pub fn detect(&self, ctx: &FileContext) -> Vec&lt;Finding&gt;;
+}</code></pre>
+
+      <h3>3.2 Detection Context</h3>
+
+      <p>Each detector receives a <code>FileContext</code> containing pre-computed file attributes:</p>
+
+      <pre><code>pub struct FileContext&lt;'a&gt; {
+    pub path: &amp;'a PathBuf,           // Absolute path
+    pub relative_path: &amp;'a PathBuf,   // Path relative to root
+    pub mode: u32,                     // Unix permissions
+    pub is_executable: bool,
+    pub is_world_writable: bool,
+    pub is_world_readable: bool,
+    pub is_suid: bool,
+    pub is_sgid: bool,
+}</code></pre>
+
+      <h3>3.3 Finding Structure</h3>
+
+      <pre><code>pub struct Finding {
+    pub kind: String,      // Detection type identifier
+    pub path: PathBuf,      // File path
+    pub detail: String,    // Human-readable details
+    pub severity: Severity,// Critical/High/Medium/Low
+}
+
+pub enum Severity {
+    Critical,  // Score: 5
+    High,       // Score: 4
+    Medium,     // Score: 3
+    Low,        // Score: 2
+}</code></pre>
+
+      <h3>3.4 Detector Categories</h3>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th>Detectors</th>
+            <th>Analysis Method</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Permissions</strong></td>
+            <td>SUID/SGID, World-Writable, Writable Dir, Hidden</td>
+            <td>Unix permission bits</td>
+          </tr>
+          <tr>
+            <td><strong>ELF Analysis</strong></td>
+            <td>Stripped, Static, Packed, Unusual Location</td>
+            <td>ELF header/section parsing</td>
+          </tr>
+          <tr>
+            <td><strong>Credentials</strong></td>
+            <td>Private Keys, Authorized Keys, Credential Files</td>
+            <td>Path pattern + content inspection</td>
+          </tr>
+          <tr>
+            <td><strong>Package Managers</strong></td>
+            <td>npm, pip, gem, apk configuration</td>
+            <td>Config file content analysis</td>
+          </tr>
+          <tr>
+            <td><strong>Risk Indicators</strong></td>
+            <td>Miners, Risky Tools, Startup Scripts</td>
+            <td>Binary name pattern matching</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="processing-pipeline">4. Processing Pipeline</h2>
+
+      <p>The analysis pipeline follows a strict sequence:</p>
+
+      <div class="diagram">
+        <pre><code>+------------------------+     +------------------------+
+| Docker Image (.tar)   |---->| Image Loader           |
+| Untrusted Input       |     | manifest.json parsing  |
++------------------------+     +-----------+------------+
+                                        |
+                                        v
+                        +------------------------+
+                        | Layer Verification    |
+                        | locate_layers()       |
+                        +-----------+------------+
+                                        |
+                                        v
+                        +------------------------+
+                        | Filesystem Build      |
+                        | layer.tar extraction  |
+                        +-----------+------------+
+                                        |
+                                        v
+                        +------------------------+
+                        | Scanner               |
+                        | walk_dir()            |
+                        +-----------+------------+
+                                        |
+                                        v
+                        +------------------------+
+                        | Detector Registry      |
+                        | ctx = FileContext      |
+                        | findings = detect(ctx)|
+                        +-----------+------------+
+                                        |
+                                        v
+                        +------------------------+
+                        | Report Generator       |
+                        | Filtering & Scoring   |
+                        +------------------------+</code></pre>
+      </div>
+
+      <h3>4.1 Stage Details</h3>
+
+      <h4>Stage 1: Image Loading</h4>
+      <p>Parses the Docker image tar archive using the <code>tar</code> crate. Extracts <code>manifest.json</code> to identify layer paths.</p>
+
+      <h4>Stage 2: Layer Verification</h4>
+      <p>Verifies all referenced layers exist in the tar archive. Returns error if any layer is missing.</p>
+
+      <h4>Stage 3: Filesystem Reconstruction</h4>
+      <p>Extracts each layer's <code>layer.tar</code> in order. Later layers override earlier ones. Handles whiteout files (markers for deleted files).</p>
+
+      <h4>Stage 4: Directory Traversal</h4>
+      <p>Recursively walks the reconstructed filesystem. For each file:</p>
       <ul>
-        <li>Docker image is <strong>untrusted input</strong></li>
-        <li>Tool must <strong>never execute</strong> image contents</li>
-        <li>Analysis is <strong>read-only</strong></li>
-        <li>No network access during analysis</li>
+        <li>Collects file metadata (permissions, size, type)</li>
+        <li>Builds <code>FileContext</code></li>
+        <li>Passes context to each registered detector</li>
+        <li>Collects all findings</li>
       </ul>
+
+      <h4>Stage 5: Report Generation</h4>
+      <p>Applies allowlist filtering, baseline comparison, and severity scoring. Outputs findings with suspicion level.</p>
+
+      <h2 id="trust-model">5. Trust Model</h2>
 
       <div class="note">
-        <div class="note-title">Security</div>
-        <p>bsuppla performs static inspection only. It never executes any files from the analyzed image, making it safe to scan potentially malicious images. However, always run in an isolated environment as a defense-in-depth measure.</p>
+        <div class="note-title">Security Assumption</div>
+        <p>The Docker image under analysis is treated as <strong>untrusted input</strong>. The analysis process must never execute any code from the image.</p>
       </div>
 
-      <h2 id="threats">Threats Addressed</h2>
-      <p>bsuppla is designed to detect the following threat categories:</p>
-      
-      <h3>Supply-Chain Attacks</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Trust Level</th>
+            <th>Rationale</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>bsuppla Code</td>
+            <td>Trusted</td>
+            <td>Audited, version-controlled</td>
+          </tr>
+          <tr>
+            <td>Docker Image</td>
+            <td>Untrusted</td>
+            <td>External input, may be malicious</td>
+          </tr>
+          <tr>
+            <td>Analysis Output</td>
+            <td>Trusted</td>
+            <td>Generated by verified code</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>5.1 Security Boundaries</h3>
       <ul>
-        <li>Backdoored base images</li>
-        <li>Compromised dependencies embedded in images</li>
-        <li>Trojaned binaries</li>
+        <li><strong>No Execution</strong>: Files are never opened with execute permissions</li>
+        <li><strong>No Network</strong>: Analysis runs completely offline</li>
+        <li><strong>Read-Only</strong>: Output directory is cleaned before each run</li>
+        <li><strong>Isolated</strong>: Should run in containerized environment</li>
       </ul>
 
-      <h3>Obfuscation</h3>
-      <ul>
-        <li>Packed or encrypted binaries</li>
-        <li>Stripped executables</li>
-        <li>Static binaries that bypass dynamic analysis</li>
-      </ul>
+      <h2 id="extensibility">6. Extensibility</h2>
 
-      <h3>Covert Execution</h3>
-      <ul>
-        <li>Hidden executables in dotfiles</li>
-        <li>Executables in unusual locations</li>
-        <li>Startup scripts in init/rc/cron</li>
-      </ul>
+      <p>Adding new detection capabilities requires implementing the <code>Detector</code> trait:</p>
 
-      <h3>Credential Theft</h3>
-      <ul>
-        <li>Exposed private keys</li>
-        <li>SSH authorized keys</li>
-        <li>Credential files (.env, .aws, .docker)</li>
-        <li>Insecure /etc/shadow</li>
-      </ul>
+      <pre><code>use crate::detector::{Detector, FileContext, Finding, Severity};
 
-      <h3>Cryptocurrency Mining</h3>
+pub struct MyCustomDetector;
+
+impl Detector for MyCustomDetector {
+    fn name(&self) -> &'static str {
+        "my_custom_detection"
+    }
+
+    fn detect(&self, ctx: &FileContext) -> Option&lt;Finding&gt; {
+        // Custom detection logic
+        if ctx.is_executable &amp;&amp; /* ... */ {
+            Some(Finding::new(
+                "my_custom_detection",
+                ctx.relative_path.clone(),
+                "details here".to_string(),
+                Severity::High,
+            ))
+        } else {
+            None
+        }
+    }
+}</code></pre>
+
+      <p>Register the detector:</p>
+
+      <pre><code>// In detectors/mod.rs
+pub fn default_registry() -> DetectorRegistry {
+    let mut registry = DetectorRegistry::new();
+    // ... existing detectors ...
+    registry.register(Box::new(my_custom::MyCustomDetector));
+    registry
+}</code></pre>
+
+      <h2>7. Conclusions</h2>
+      <p>The bsuppla architecture provides:</p>
       <ul>
-        <li>Known miner binaries</li>
-        <li>Mining pool configurations</li>
+        <li>Safe static analysis without code execution</li>
+        <li>Extensible plugin system via trait composition</li>
+        <li>Independent testability of each detector</li>
+        <li>Clear separation of concerns</li>
       </ul>
 
     </div>
 
     <footer class="footer">
-      <p>bsuppla &copy; 2024. Released under MIT License.</p>
+      <p>bsuppla &copy; 2024. MIT License.</p>
     </footer>
   </main>
 
   <script>
-    // Theme toggle
     function toggleTheme() {
       const html = document.documentElement;
       const currentTheme = html.getAttribute('data-theme');
@@ -288,7 +437,6 @@
       localStorage.setItem('theme', newTheme);
     }
     
-    // Load saved theme
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'light') {
       document.documentElement.setAttribute('data-theme', 'light');

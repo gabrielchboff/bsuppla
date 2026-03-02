@@ -28,6 +28,7 @@
         <div class="nav-section-title">Reference</div>
         <a href="architecture.html" class="nav-link">Architecture</a>
         <a href="signals.html" class="nav-link">Detected Signals</a>
+        <a href="concept.html" class="nav-link">Concepts</a>
       </div>
     </nav>
   </aside>
@@ -49,206 +50,174 @@
     </header>
 
     <div class="content">
-      <h1>Usage</h1>
-      <p>Learn how to use bsuppla to scan Docker images for security issues.</p>
+      <h1>Detection Framework</h1>
+      <p>This document describes the detection framework, allowlist mechanism, and baseline comparison features.</p>
 
       <div class="toc">
         <h3>Table of Contents</h3>
         <ul>
-          <li><a href="#basic">Basic Usage</a></li>
-          <li><a href="#allowlist">Allowlist</a></li>
-          <li><a href="#baseline">Baseline</a></li>
-          <li><a href="#output">Output</a></li>
-          <li><a href="#examples">Examples</a></li>
+          <li><a href="#detection">Detection Process</a></li>
+          <li><a href="#allowlist">Allowlist Mechanism</a></li>
+          <li><a href="#baseline">Baseline Comparison</a></li>
+          <li><a href="#output">Output Format</a></li>
+          <li><a href="#exit-codes">Exit Codes</a></li>
         </ul>
       </div>
 
-      <h2 id="basic">Basic Usage</h2>
-      <p>Run a simple scan on a Docker image:</p>
-      <pre><code>bsuppla &lt;image&gt; &lt;image.tar&gt;</code></pre>
+      <h2 id="detection">1. Detection Process</h2>
+      <p>The analysis workflow operates as follows:</p>
 
-      <h3>Arguments</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Argument</th>
-            <th>Required</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><code>image</code></td>
-            <td>Yes</td>
-            <td>Docker image name (e.g., alpine:latest)</td>
-          </tr>
-          <tr>
-            <td><code>image.tar</code></td>
-            <td>Yes</td>
-            <td>Output tar file path</td>
-          </tr>
-          <tr>
-            <td><code>allowlist.txt</code></td>
-            <td>No</td>
-            <td>Path to allowlist file</td>
-          </tr>
-          <tr>
-            <td><code>baseline.txt</code></td>
-            <td>No</td>
-            <td>Path to baseline file</td>
-          </tr>
-        </tbody>
-      </table>
+      <pre><code>1. Image Acquisition
+   └─> docker pull & docker save
+   
+2. Filesystem Extraction
+   └─> Parse manifest.json, extract layers
+   
+3. Traversal
+   └─> Walk extracted filesystem tree
+   
+4. Detection
+   └─> For each file: create FileContext, query DetectorRegistry
+   
+5. Reporting
+   └─> Filter, score, compare baseline, output results</code></pre>
 
-      <h3>Example</h3>
-      <pre><code>bsuppla alpine:latest alpine.tar</code></pre>
+      <h2 id="allowlist">2. Allowlist Mechanism</h2>
+      <p>The allowlist feature enables suppression of known-safe findings. This is critical for reducing false positives in operational environments.</p>
 
-      <p>Or with cargo run:</p>
-      <pre><code>cargo run -- alpine:latest alpine.tar</code></pre>
+      <h3>2.1 Format</h3>
+      <p>Allowlist entries support two formats:</p>
 
-      <h2 id="allowlist">Allowlist File</h2>
-      <p>The allowlist suppresses known-safe findings. Each line should contain a path or pattern. Lines starting with <code>#</code> are comments.</p>
-
-      <h3>Simple Path</h3>
-      <pre><code># Suppress findings for common Alpine files
+      <h4>Path-Only</h4>
+      <pre><code>/path/to/file
 /bin/busybox
-/sbin/apk
-/usr/lib/libcrypto.so.3</code></pre>
+/usr/lib/libssl.so.3</code></pre>
 
-      <h3>Kind-Specific Allowlist</h3>
-      <p>You can also specify the finding kind to suppress:</p>
-      <pre><code>&lt;kind&gt;: &lt;path-or-pattern&gt;</code></pre>
+      <h4>Kind-Specific</h4>
+      <pre><code>&lt;signal_kind&gt;: &lt;path_pattern&gt;
 
-      <p>Example:</p>
-      <pre><code># Suppress all elf_suspicious findings in /usr/lib
 elf_suspicious: /usr/lib/*
+suid_or_sgid_executable: /usr/bin/passwd
+risky_tool_present: /usr/bin/curl</code></pre>
 
-# Suppress specific private key path
-private_key_candidate: /root/.ssh/id_rsa</code></pre>
-
-      <h3>Pattern Matching</h3>
-      <p>Allowlist entries support glob patterns:</p>
-      <ul>
-        <li><code>*</code> - Matches any characters (e.g., <code>/usr/lib/*</code> matches all files in /usr/lib)</li>
-        <li><code>?</code> - Matches a single character (e.g., <code>/bin/?sh</code> matches /bin/ash, /bin/bsh)</li>
-      </ul>
-
-      <div class="note">
-        <div class="note-title">Note</div>
-        <p>If no allowlist is provided, a built-in default allowlist is used for <code>elf_suspicious</code> findings in standard library and binary locations like <code>/lib</code>, <code>/usr/lib</code>, <code>/bin</code>, and <code>/usr/bin</code>.</p>
-      </div>
-
-      <h2 id="baseline">Baseline File</h2>
-      <p>The baseline file compares current findings against a known-good scan. Each line should match:</p>
-      <pre><code>&lt;kind&gt;: &lt;path&gt;</code></pre>
-
-      <p>Example baseline:</p>
-      <pre><code>elf_suspicious: /bin/busybox
-startup_script_present: /var/spool/cron/crontabs/root</code></pre>
-
-      <h3>Baseline Comparison Output</h3>
-      <p>When a baseline is provided, bsuppla will:</p>
-      <ul>
-        <li>List <strong>new</strong> findings not in the baseline</li>
-        <li>Show any <strong>missing</strong> baseline entries (items that were in baseline but not found now)</li>
-        <li>Display <strong>unchanged</strong> findings (optional, with verbose mode)</li>
-      </ul>
-
-      <h3>Generate Baseline</h3>
-      <p>Export current findings as a baseline file:</p>
-      <pre><code>bsuppla alpine:latest alpine.tar allowlist.txt --baseline-out baseline.txt</code></pre>
-
-      <h2 id="output">Output</h2>
-      <p>bsuppla prints a list of findings (if any) and an overall suspicion level.</p>
-
-      <h3>Example Output (Medium)</h3>
-      <div class="output-example">
-[+] Findings:<br>
-&nbsp;&nbsp;- elf_suspicious: sbin/apk (stripped)<br>
-&nbsp;&nbsp;- startup_script_present: var/spool/cron/crontabs/root (init/rc/cron)<br>
-[+] Suspicion level: <span class="level-medium">medium</span>
-      </div>
-
-      <h3>Example Output (High)</h3>
-      <div class="output-example">
-[+] Findings:<br>
-&nbsp;&nbsp;- crypto_miner_candidate: usr/bin/xmrig (known miner name)<br>
-&nbsp;&nbsp;- private_key_candidate: root/.ssh/id_rsa (key material present)<br>
-&nbsp;&nbsp;- suid_or_sgid_executable: usr/bin/sudo (mode=4755)<br>
-&nbsp;&nbsp;- apk_repository_suspicious: etc/apk/repositories (non-alpine repo: http://example.com/alpine)<br>
-[+] Suspicion level: <span class="level-high">high</span>
-      </div>
-
-      <h3>Suspicion Levels</h3>
+      <h3>2.2 Pattern Matching</h3>
       <table>
         <thead>
           <tr>
-            <th>Level</th>
-            <th>Exit Code</th>
-            <th>Description</th>
+            <th>Pattern</th>
+            <th>Matches</th>
+            <th>Example</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td><span class="level-low">Low</span></td>
-            <td>0</td>
-            <td>No suspicious findings or only minor indicators</td>
+            <td><code>*</code></td>
+            <td>Any characters</td>
+            <td><code>/usr/lib/*</code> matches all files in /usr/lib</td>
           </tr>
           <tr>
-            <td><span class="level-medium">Medium</span></td>
-            <td>1</td>
-            <td>Somewhat suspicious findings that may warrant review</td>
-          </tr>
-          <tr>
-            <td><span class="level-high">High</span></td>
-            <td>2</td>
-            <td>Critical indicators like crypto miners, private keys, or backdoors</td>
+            <td><code>?</code></td>
+            <td>Single character</td>
+            <td><code>/bin/?sh</code> matches /bin/ash, /bin/bsh</td>
           </tr>
         </tbody>
       </table>
 
-      <h2 id="examples">Advanced Examples</h2>
-      
-      <h3>Offline Scanning</h3>
-      <p>To scan an already-existing tar file without pulling from Docker:</p>
-      <pre><code>BSUPPLA_SKIP_DOCKER=1 bsuppla alpine:latest alpine.tar</code></pre>
-      
-      <h3>Extract Only (No Scan)</h3>
-      <p>To only extract the image without scanning:</p>
-      <pre><code>BSUPPLA_SKIP_SCAN=1 bsuppla alpine:latest alpine.tar</code></pre>
-      
-      <h3>Custom Output Directory</h3>
-      <p>To extract to a custom directory:</p>
-      <pre><code>BSUPPLA_OUTPUT_DIR=/tmp/myfs bsuppla alpine:latest alpine.tar</code></pre>
+      <h3>2.3 Default Allowlist</h3>
+      <p>If no allowlist is provided, a built-in default is applied to suppress <code>elf_suspicious</code> findings in standard library paths:</p>
+      <pre><code>/bin/*
+/sbin/*
+/usr/bin/*
+/usr/sbin/*
+/lib/*
+/usr/lib/*</code></pre>
 
-      <h3>CI/CD Pipeline Example</h3>
-      <pre><code>#!/bin/bash
-IMAGE=$1
-TAR_FILE=$(mktemp).tar
+      <h2 id="baseline">3. Baseline Comparison</h2>
+      <p>Baseline comparison enables tracking changes in image composition over time.</p>
 
-# Pull and save image
-docker pull $IMAGE
-docker save $IMAGE -o $TAR_FILE
+      <h3>3.1 Baseline Generation</h3>
+      <p>Generate a baseline from a known-good scan:</p>
+      <pre><code>bsuppla alpine:latest alpine.tar --baseline-out baseline.txt</code></pre>
 
-# Scan with allowlist
-bsuppla $IMAGE $TAR_FILE allowlist.txt
-RESULT=$?
+      <h3>3.2 Baseline Comparison</h3>
+      <p>Compare current findings against baseline:</p>
+      <pre><code>bsuppla alpine:latest alpine.tar allowlist.txt baseline.txt</code></pre>
 
-# Cleanup
-rm -f $TAR_FILE
+      <h3>3.3 Comparison Output</h3>
+      <p>The system reports:</p>
+      <ul>
+        <li><strong>New findings</strong>: Present in current scan but not in baseline</li>
+        <li><strong>Missing findings</strong>: Were in baseline but not found in current scan</li>
+        <li><strong>Baseline matched</strong>: Findings present in both</li>
+      </ul>
 
-# Exit based on suspicion level
-exit $RESULT</code></pre>
+      <h2 id="output">4. Output Format</h2>
+      <p>The system produces structured output indicating findings and suspicion level.</p>
+
+      <h3>4.1 Example: No Findings</h3>
+      <pre><code>[+] No high-signal findings detected.
+[+] Suspicion level: low</code></pre>
+
+      <h3>4.2 Example: With Findings</h3>
+      <pre><code>[+] Findings:
+ - elf_suspicious: sbin/apk (stripped)
+ - startup_script_present: var/spool/cron/crontabs/root (init/rc/cron)
+[+] Suspicion level: medium</code></pre>
+
+      <h3>4.3 Example: High Suspicion</h3>
+      <pre><code>[+] Findings:
+ - crypto_miner_candidate: usr/bin/xmrig (known miner name)
+ - private_key_candidate: root/.ssh/id_rsa (key material present)
+ - suid_or_sgid_executable: usr/bin/sudo (mode=4755)
+[+] Suspicion level: high</code></pre>
+
+      <h3>4.4 Example: Baseline Comparison</h3>
+      <pre><code>[+] Findings:
+ - crypto_miner_candidate: usr/bin/xmrig (known miner name)
+[+] No new findings (all matched baseline).
+[+] Baseline matched: 3
+[+] Baseline missing:
+ - elf_suspicious: old/file.bin
+[+] Suspicion level: high</code></pre>
+
+      <h2 id="exit-codes">5. Exit Codes</h2>
+      <p>The system returns exit codes indicating scan results:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Level</th>
+            <th>Meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>0</td>
+            <td>Low</td>
+            <td>No significant findings</td>
+          </tr>
+          <tr>
+            <td>1</td>
+            <td>Medium</td>
+            <td>Findings present, may warrant review</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>High</td>
+            <td>Critical findings detected</td>
+          </tr>
+        </tbody>
+      </table>
 
     </div>
 
     <footer class="footer">
-      <p>bsuppla &copy; 2024. Released under MIT License.</p>
+      <p>bsuppla &copy; 2024. MIT License.</p>
     </footer>
   </main>
 
   <script>
-    // Theme toggle
     function toggleTheme() {
       const html = document.documentElement;
       const currentTheme = html.getAttribute('data-theme');
@@ -257,7 +226,6 @@ exit $RESULT</code></pre>
       localStorage.setItem('theme', newTheme);
     }
     
-    // Load saved theme
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'light') {
       document.documentElement.setAttribute('data-theme', 'light');

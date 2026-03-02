@@ -1,3 +1,5 @@
+mod detector;
+mod detectors;
 mod error;
 mod fs;
 mod image;
