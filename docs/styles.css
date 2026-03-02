@@ -162,47 +162,6 @@ a:hover {
   background: rgba(255, 255, 255, 0.9);
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.search-box {
-  position: relative;
-  width: 320px;
-}
-
-.search-box input {
-  width: 100%;
-  padding: 8px 12px 8px 36px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text-primary);
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.2s, background-color 0.3s;
-}
-
-.search-box input::placeholder {
-  color: var(--text-muted);
-}
-
-.search-box input:focus {
-  border-color: var(--accent);
-}
-
-.search-box svg {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 16px;
-  height: 16px;
-  color: var(--text-muted);
-}
-
 .header-links {
   display: flex;
   align-items: center;
@@ -584,10 +543,6 @@ a:hover {
   
   .header {
     padding: 0 16px;
-  }
-  
-  .search-box {
-    display: none;
   }
   
   .hero h1 {

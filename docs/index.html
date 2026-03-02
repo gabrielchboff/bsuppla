@@ -34,15 +34,6 @@
 
   <main class="main-content">
     <header class="header">
-      <div class="header-left">
-        <div class="search-box">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"/>
-            <path d="m21 21-4.35-4.35"/>
-          </svg>
-          <input type="text" placeholder="Search documentation...">
-        </div>
-      </div>
       <div class="header-links">
         <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
           <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -184,6 +175,7 @@ bsuppla alpine:latest alpine.tar allowlist.txt baseline.txt</code></pre>
   </main>
 
   <script>
+    // Theme toggle
     function toggleTheme() {
       const html = document.documentElement;
       const currentTheme = html.getAttribute('data-theme');
