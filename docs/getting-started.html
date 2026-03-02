@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Installation - bsuppla</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <img src="images/1.png" alt="bsuppla" style="height: 36px;">
+        <h1>bsuppla</h1>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">Overview</div>
+        <a href="index.html" class="nav-link">Home</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">Getting Started</div>
+        <a href="getting-started.html" class="nav-link active">Installation</a>
+        <a href="usage.html" class="nav-link">Usage</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">Reference</div>
+        <a href="architecture.html" class="nav-link">Architecture</a>
+        <a href="signals.html" class="nav-link">Detected Signals</a>
+      </div>
+    </nav>
+  </aside>
+
+  <main class="main-content">
+    <header class="header">
+      <div class="header-left">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input type="text" placeholder="Search documentation...">
+        </div>
+      </div>
+      <div class="header-links">
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+          <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+          <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a href="https://github.com/gabrielchboff/bsuppla" target="_blank">GitHub</a>
+      </div>
+    </header>
+
+    <div class="content">
+      <h1>Installation</h1>
+      <p>Get bsuppla up and running on your system. Follow the instructions below based on your setup.</p>
+
+      <div class="toc">
+        <h3>Table of Contents</h3>
+        <ul>
+          <li><a href="#requirements">Requirements</a></li>
+          <li><a href="#build">Build from Source</a></li>
+          <li><a href="#install">Install</a></li>
+          <li><a href="#verify">Verify Installation</a></li>
+          <li><a href="#env">Environment Variables</a></li>
+          <li><a href="#troubleshooting">Troubleshooting</a></li>
+        </ul>
+      </div>
+
+      <h2 id="requirements">Requirements</h2>
+      <p>Before installing bsuppla, ensure your system meets the following requirements:</p>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Requirement</th>
+            <th>Description</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Rust Toolchain</strong></td>
+            <td>Stable Rust (1.70+)</td>
+            <td>Required for building from source</td>
+          </tr>
+          <tr>
+            <td><strong>Docker</strong></td>
+            <td>Docker daemon running</td>
+            <td>Required for pulling/saving images</td>
+          </tr>
+          <tr>
+            <td><strong>Operating System</strong></td>
+            <td>Linux, macOS, Windows (WSL2)</td>
+            <td>Primary target is Linux</td>
+          </tr>
+          <tr>
+            <td><strong>Memory</strong></td>
+            <td>4GB+ RAM recommended</td>
+            <td>For larger container images</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="build">Build from Source</h2>
+      <p>The recommended way to install bsuppla is building from source. This ensures you have the latest version and allows you to inspect the code.</p>
+
+      <h3>Step 1: Clone the Repository</h3>
+      <pre><code>git clone https://github.com/gabrielchboff/bsuppla.git
+cd bsuppla</code></pre>
+
+      <h3>Step 2: Build the Project</h3>
+      <pre><code>cd bsuppla/bsuppla
+cargo build --release</code></pre>
+      
+      <p>The build process will:</p>
+      <ul>
+        <li>Download and compile all Rust dependencies</li>
+        <li>Optimize the binary for release</li>
+        <li>Produce a single static executable</li>
+      </ul>
+
+      <h3>Binary Location</h3>
+      <p>After building, the binary will be located at:</p>
+      <pre><code>bsuppla/bsuppla/target/release/bsuppla</code></pre>
+
+      <h2 id="install">Install</h2>
+      <p>You can install bsuppla using the provided install script or Make:</p>
+
+      <h3>Using install script</h3>
+      <pre><code>bash scripts/install.sh</code></pre>
+
+      <h3>Using Make</h3>
+      <pre><code>make install</code></pre>
+
+      <div class="note">
+        <div class="note-title">Note</div>
+        <p>The install script copies the binary to <code>/usr/local/bin</code> by default. You may need sudo privileges depending on your system configuration.</p>
+      </div>
+
+      <h3>Custom Installation Path</h3>
+      <p>To install to a custom directory, set the <code>PREFIX</code> variable:</p>
+      <pre><code>PREFIX=$HOME/.local bash scripts/install.sh</code></pre>
+
+      <h2 id="verify">Verify Installation</h2>
+      <p>Check that bsuppla is installed correctly:</p>
+      <pre><code>bsuppla --help</code></pre>
+      
+      <p>You should see output similar to:</p>
+      <pre><code>bsuppla 1.0.0
+Statically analyze Docker images without executing them
+
+USAGE:
+    bsuppla &lt;IMAGE&gt; &lt;OUTPUT_TAR&gt; [ALLOWLIST] [BASELINE]
+
+For more information, try --help</code></pre>
+
+      <h2 id="env">Environment Variables</h2>
+      <p>bsuppla supports the following optional environment variables:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Variable</th>
+            <th>Description</th>
+            <th>Default</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>BSUPPLA_SKIP_DOCKER=1</code></td>
+            <td>Skip docker pull/save - useful for scanning an existing tar file</td>
+            <td>false</td>
+          </tr>
+          <tr>
+            <td><code>BSUPPLA_SKIP_SCAN=1</code></td>
+            <td>Skip scanning after extraction</td>
+            <td>false</td>
+          </tr>
+          <tr>
+            <td><code>BSUPPLA_OUTPUT_DIR=/path</code></td>
+            <td>Set extraction directory</td>
+            <td>container_fs</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Usage Examples</h3>
+      
+      <h4>Scan existing tar</h4>
+      <pre><code>BSUPPLA_SKIP_DOCKER=1 bsuppla alpine:latest alpine.tar</code></pre>
+      
+      <h4>Extract only (no scan)</h4>
+      <pre><code>BSUPPLA_SKIP_SCAN=1 bsuppla alpine:latest alpine.tar</code></pre>
+      
+      <h4>Custom output directory</h4>
+      <pre><code>BSUPPLA_OUTPUT_DIR=/tmp/myfs bsuppla alpine:latest alpine.tar</code></pre>
+
+      <h2 id="troubleshooting">Troubleshooting</h2>
+      
+      <h3>"command not found" after installation</h3>
+      <p>Ensure the installation directory is in your PATH:</p>
+      <pre><code>export PATH="$PATH:/usr/local/bin"</code></pre>
+      
+      <h3>Docker permission denied</h3>
+      <p>Ensure your user has permission to run Docker commands:</p>
+      <pre><code>sudo usermod -aG docker $USER</code></pre>
+      
+      <h3>Build errors</h3>
+      <p>Ensure Rust is up to date:</p>
+      <pre><code>rustup update
+cargo update</code></pre>
+
+      <h2>Next Steps</h2>
+      <p>Now that you have bsuppla installed, head over to the <a href="usage.html">Usage</a> guide to learn how to scan Docker images.</p>
+
+    </div>
+
+    <footer class="footer">
+      <p>bsuppla &copy; 2024. Released under MIT License.</p>
+    </footer>
+  </main>
+
+  <script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      const currentTheme = html.getAttribute('data-theme');
+      const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+      html.setAttribute('data-theme', newTheme === 'dark' ? '' : 'light');
+      localStorage.setItem('theme', newTheme);
+    }
+    
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  </script>
+</body>
+</html>

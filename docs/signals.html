@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detected Signals - bsuppla</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <img src="images/1.png" alt="bsuppla" style="height: 36px;">
+        <h1>bsuppla</h1>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">Overview</div>
+        <a href="index.html" class="nav-link">Home</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">Getting Started</div>
+        <a href="getting-started.html" class="nav-link">Installation</a>
+        <a href="usage.html" class="nav-link">Usage</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">Reference</div>
+        <a href="architecture.html" class="nav-link">Architecture</a>
+        <a href="signals.html" class="nav-link active">Detected Signals</a>
+      </div>
+    </nav>
+  </aside>
+
+  <main class="main-content">
+    <header class="header">
+      <div class="header-left">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input type="text" placeholder="Search documentation...">
+        </div>
+      </div>
+      <div class="header-links">
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+          <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+          <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a href="https://github.com/gabrielchboff/bsuppla" target="_blank">GitHub</a>
+      </div>
+    </header>
+
+    <div class="content">
+      <h1>Detected Signals</h1>
+      <p>bsuppla detects various security indicators in Docker images. This page documents all the signals that can be flagged.</p>
+
+      <div class="toc">
+        <h3>Table of Contents</h3>
+        <ul>
+          <li><a href="#elf">ELF Binary Indicators</a></li>
+          <li><a href="#credentials">Credentials &amp; Keys</a></li>
+          <li><a href="#tools">Suspicious Tools</a></li>
+          <li><a href="#startup">Startup &amp; Persistence</a></li>
+          <li><a href="#packages">Package Manager</a></li>
+          <li><a href="#severity">Severity Levels</a></li>
+          <li><a href="#suppress">Suppressing Findings</a></li>
+        </ul>
+      </div>
+
+      <h2 id="elf">ELF Binary Indicators</h2>
+      <p>These signals relate to executable files and their characteristics.</p>
+      <div class="signals-grid">
+        <div class="signal-item">
+          <code>elf_suspicious</code>
+          <p>ELF binary with suspicious traits such as being stripped, static, or having packed sections. May indicate obfuscation.</p>
+        </div>
+        <div class="signal-item">
+          <code>elf_in_writable_dir</code>
+          <p>Executable found in a writable directory (/tmp, /var/tmp, /dev/shm). Could indicate privilege escalation or runtime injection.</p>
+        </div>
+        <div class="signal-item">
+          <code>suid_or_sgid_executable</code>
+          <p>Binary with SUID or SGID bit set, allowing execution with elevated (owner/group) privileges. Common for legitimate tools but risky if unnecessary.</p>
+        </div>
+        <div class="signal-item">
+          <code>world_writable</code>
+          <p>File or directory that is world-writable. Attackers can modify these to gain persistence or escalate privileges.</p>
+        </div>
+        <div class="signal-item">
+          <code>hidden_executable</code>
+          <p>Executable hidden in a dotfile (starts with .) outside standard locations. Often used to hide malicious code.</p>
+        </div>
+        <div class="signal-item">
+          <code>elf_outside_standard_paths</code>
+          <p>ELF binary located outside common bin/lib paths like /bin, /usr/bin, /lib. Unusual placement may indicate compromise.</p>
+        </div>
+      </div>
+
+      <h2 id="credentials">Credentials &amp; Keys</h2>
+      <p>These signals indicate potentially exposed sensitive data.</p>
+      <div class="signals-grid">
+        <div class="signal-item">
+          <code>private_key_candidate</code>
+          <p>Private key material found in .ssh/ directory or other sensitive locations. Exposure allows unauthorized access.</p>
+        </div>
+        <div class="signal-item">
+          <code>ssh_authorized_keys</code>
+          <p>SSH authorized_keys file present. Could allow passwordless remote access by attackers.</p>
+        </div>
+        <div class="signal-item">
+          <code>insecure_shadow</code>
+          <p>/etc/shadow has insecure permissions (world-readable or writable). Password hashes could be extracted.</p>
+        </div>
+        <div class="signal-item">
+          <code>credential_file</code>
+          <p>Credential files detected: .env*, .npmrc, .pypirc, .netrc, .aws/*, .kube/config, .docker/config.json. May contain API keys or secrets.</p>
+        </div>
+      </div>
+
+      <h2 id="tools">Suspicious Tools</h2>
+      <p>Detection of tools that can be used for both legitimate and malicious purposes.</p>
+      <div class="signals-grid">
+        <div class="signal-item">
+          <code>risky_dual_use_tool</code>
+          <p>Dual-use tools that can be used for both legitimate and malicious purposes. Includes: curl, wget, nc, socat, ssh, tcpdump, strace, lsof, nmap, netcat, etc.</p>
+        </div>
+        <div class="signal-item">
+          <code>crypto_miner_candidate</code>
+          <p>Known cryptocurrency mining software detected (e.g., xmrig, cpuminer, nicehash, ethminer). Indicates the image may be compromised for cryptojacking.</p>
+        </div>
+      </div>
+
+      <h2 id="startup">Startup &amp; Persistence</h2>
+      <p>Signals related to persistence mechanisms.</p>
+      <div class="signals-grid">
+        <div class="signal-item">
+          <code>startup_script_present</code>
+          <p>Startup script detected in init, rc, or cron directories. Could indicate attempts at persistence or scheduled malicious activity.</p>
+        </div>
+      </div>
+
+      <h2 id="packages">Package Manager</h2>
+      <p>Detection of suspicious package manager configurations.</p>
+      <div class="signals-grid">
+        <div class="signal-item">
+          <code>apk_repository_suspicious</code>
+          <p>Suspicious APK repository configuration. Non-standard or unknown repositories could serve compromised packages.</p>
+        </div>
+        <div class="signal-item">
+          <code>apk_key_suspicious</code>
+          <p>Unusual APK key name detected. May indicate a malicious package source.</p>
+        </div>
+        <div class="signal-item">
+          <code>package_manager_suspicious</code>
+          <p>Suspicious package manager configuration or lockfile source (npm, pip, gem). Could indicate dependency confusion attacks.</p>
+        </div>
+      </div>
+
+      <h2 id="severity">Signal Severity</h2>
+      <p>Signals are grouped by potential severity to help prioritize remediation.</p>
+
+      <h3>High Severity</h3>
+      <p>These findings indicate immediate security risks:</p>
+      <ul>
+        <li><code>crypto_miner_candidate</code> - Active cryptojacking</li>
+        <li><code>private_key_candidate</code> - Credential exposure</li>
+        <li><code>insecure_shadow</code> - Password hash exposure</li>
+        <li><code>credential_file</code> - Secrets exposure</li>
+      </ul>
+
+      <h3>Medium Severity</h3>
+      <p>These findings warrant investigation:</p>
+      <ul>
+        <li><code>suid_or_sgid_executable</code> - Potential privilege escalation</li>
+        <li><code>startup_script_present</code> - Persistence mechanism</li>
+        <li><code>risky_dual_use_tool</code> - Tool available for attack use</li>
+        <li><code>apk_repository_suspicious</code> - Supply-chain risk</li>
+      </ul>
+
+      <h3>Low Severity</h3>
+      <p>These findings may be acceptable depending on context:</p>
+      <ul>
+        <li><code>elf_suspicious</code> - Could be legitimate optimization</li>
+        <li><code>hidden_executable</code> - May be intentional</li>
+        <li><code>elf_outside_standard_paths</code> - Could be intentional</li>
+      </ul>
+
+      <h2 id="suppress">Suppressing Findings</h2>
+      <p>Use the <a href="usage.html">allowlist</a> feature to suppress known-safe findings. You can allowlist by path or by signal type:</p>
+
+      <h3>Path-Based Allowlist</h3>
+      <pre><code># Suppress all findings for specific paths
+/bin/busybox
+/sbin/apk
+/usr/lib/libcrypto.so.3</code></pre>
+
+      <h3>Signal-Type Allowlist</h3>
+      <pre><code># Suppress specific signal types with patterns
+elf_suspicious: /usr/lib/*
+suid_or_sgid_executable: /usr/bin/passwd
+suid_or_sgid_executable: /usr/bin/sudo</code></pre>
+
+      <h3>Combined Allowlist</h3>
+      <pre><code># Example allowlist.txt
+# Suppress specific paths
+/bin/busybox
+/sbin/apk
+
+# Suppress signal types with patterns
+elf_suspicious: /usr/lib/*
+risky_dual_use_tool: /usr/bin/curl
+risky_dual_use_tool: /usr/bin/wget</code></pre>
+
+    </div>
+
+    <footer class="footer">
+      <p>bsuppla &copy; 2024. Released under MIT License.</p>
+    </footer>
+  </main>
+
+  <script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      const currentTheme = html.getAttribute('data-theme');
+      const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+      html.setAttribute('data-theme', newTheme === 'dark' ? '' : 'light');
+      localStorage.setItem('theme', newTheme);
+    }
+    
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  </script>
+</body>
+</html>

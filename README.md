@@ -1,4 +1,7 @@
 # bsuppla
+
+**[Documentation](https://gabrielchboff.github.io/bsuppla/)**
+
 Statically analyze Docker images without executing them. The tool pulls an image, saves it as a tarball, reconstructs the filesystem, and scans it for supply-chain indicators and suspicious artifacts.
 
 **Highlights**

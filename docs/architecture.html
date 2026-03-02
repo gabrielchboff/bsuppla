@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Architecture - bsuppla</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <img src="images/1.png" alt="bsuppla" style="height: 36px;">
+        <h1>bsuppla</h1>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">Overview</div>
+        <a href="index.html" class="nav-link">Home</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">Getting Started</div>
+        <a href="getting-started.html" class="nav-link">Installation</a>
+        <a href="usage.html" class="nav-link">Usage</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">Reference</div>
+        <a href="architecture.html" class="nav-link active">Architecture</a>
+        <a href="signals.html" class="nav-link">Detected Signals</a>
+      </div>
+    </nav>
+  </aside>
+
+  <main class="main-content">
+    <header class="header">
+      <div class="header-left">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input type="text" placeholder="Search documentation...">
+        </div>
+      </div>
+      <div class="header-links">
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+          <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+          <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a href="https://github.com/gabrielchboff/bsuppla" target="_blank">GitHub</a>
+      </div>
+    </header>
+
+    <div class="content">
+      <h1>Architecture</h1>
+      <p>Understanding how bsuppla works under the hood.</p>
+
+      <div class="toc">
+        <h3>Table of Contents</h3>
+        <ul>
+          <li><a href="#goal">Goal</a></li>
+          <li><a href="#scope">Scope</a></li>
+          <li><a href="#components">Components</a></li>
+          <li><a href="#pipeline">Processing Pipeline</a></li>
+          <li><a href="#trust">Trust Model</a></li>
+          <li><a href="#threats">Threats Addressed</a></li>
+        </ul>
+      </div>
+
+      <h2 id="goal">Goal</h2>
+      <p>Statically analyze Docker images <strong>without executing them</strong>, identifying suspicious binaries that may indicate supply-chain attacks.</p>
+      
+      <p>The primary objectives are:</p>
+      <ul>
+        <li>Provide visibility into container image contents without runtime risk</li>
+        <li>Detect common indicators of compromise in container images</li>
+        <li>Enable automated security scanning in CI/CD pipelines</li>
+        <li>Support allowlisting and baseline comparisons for operational flexibility</li>
+      </ul>
+
+      <h2 id="scope">Scope</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th>Included</th>
+            <th>Excluded</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Input</strong></td>
+            <td>Docker image as .tar</td>
+            <td>Running containers</td>
+          </tr>
+          <tr>
+            <td><strong>Analysis</strong></td>
+            <td>Static file inspection</td>
+            <td>Runtime behavior</td>
+          </tr>
+          <tr>
+            <td><strong>Detection</strong></td>
+            <td>Heuristic patterns</td>
+            <td>Malware signatures</td>
+          </tr>
+          <tr>
+            <td><strong>Intelligence</strong></td>
+            <td>Built-in heuristics</td>
+            <td>Machine learning</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="components">Components</h2>
+
+      <h3>1. Image Loader</h3>
+      <p>Reads the Docker image tar archive and parses the manifest to identify individual layers. Handles both v1 and v2 image formats.</p>
+      <ul>
+        <li>Parses manifest.json</li>
+        <li>Identifies layer.tar files</li>
+        <li>Extracts image configuration</li>
+      </ul>
+
+      <h3>2. Layer Extractor</h3>
+      <p>Extracts each layer's <code>layer.tar</code> and reconstructs the complete filesystem by layering them in order. Handles file permission preservation and symbolic links.</p>
+      <ul>
+        <li>Extracts layer contents</li>
+        <li>Handles layer ordering</li>
+        <li>Preserves permissions/ownership</li>
+        <li>Processes whiteouts</li>
+      </ul>
+
+      <h3>3. Binary Analyzer</h3>
+      <p>Scans the extracted filesystem for various security indicators. This is the core detection engine.</p>
+      <ul>
+        <li>ELF file detection and analysis</li>
+        <li>File permission checks</li>
+        <li>Entropy calculation for packed binaries</li>
+        <li>Pattern matching for known threats</li>
+      </ul>
+
+      <h3>4. Signal Detector</h3>
+      <p>Matches findings against known threat patterns and categorizes them by severity.</p>
+      <ul>
+        <li>Crypto miner detection</li>
+        <li>Private key identification</li>
+        <li>Suspicious tool detection</li>
+        <li>Credential file scanning</li>
+      </ul>
+
+      <h3>5. Report Generator</h3>
+      <p>Compiles findings into a human-readable report with suspicion levels and optional baseline comparison.</p>
+
+      <h2 id="pipeline">Processing Pipeline</h2>
+      <p>The following diagram shows the complete processing flow:</p>
+      
+      <div class="diagram">
+        <pre><code>+----------------------+
+| Docker Image (.tar)  |
++----------+-----------+
+           |
+           v
++----------------------+
+| Image Loader         |
+| - Reads tar archive  |
+| - Parses manifest    |
++----------+-----------+
+           |
+           v
++----------------------+
+| Layer Extractor      |
+| - Extracts layer.tar |
+| - Builds filesystem  |
+| - Handles whiteouts   |
++----------+-----------+
+           |
+           v
++----------------------+
+| Binary Analyzer      |
+| - Detects ELF files  |
+| - Checks permissions |
+| - Calculates entropy |
+| - Applies heuristics |
++----------+-----------+
+           |
+           v
++----------------------+
+| Signal Detector      |
+| - Pattern matching   |
+| - Threat categorization|
+| - Severity scoring   |
++----------+-----------+
+           |
+           v
++----------------------+
+| Report Generator     |
+| - Format output       |
+| - Apply allowlist    |
+| - Compare baseline   |
++----------------------+</code></pre>
+      </div>
+
+      <h3>Pipeline Details</h3>
+      
+      <h4>Stage 1: Image Acquisition</h4>
+      <p>bsuppla uses Docker to pull and save the image, or can work with an existing tar file. This stage is skippable via <code>BSUPPLA_SKIP_DOCKER</code>.</p>
+      
+      <h4>Stage 2: Extraction</h4>
+      <p>Each layer is extracted and the filesystem is reconstructed. Files in later layers override earlier ones. Whiteout files mark deleted files.</p>
+      
+      <h4>Stage 3: Analysis</h4>
+      <p>The analyzer walks the filesystem and applies various checks to each file. Key checks include:</p>
+      <ul>
+        <li>Is the file an ELF binary?</li>
+        <li>Is it stripped, static, or packed?</li>
+        <li>Are permissions suspicious (SUID, world-writable)?</li>
+        <li>Is it in an unusual location?</li>
+      </ul>
+      
+      <h4>Stage 4: Detection</h4>
+      <p>Findings are matched against known threat patterns. Each match produces a signal with type, path, and context.</p>
+      
+      <h4>Stage 5: Reporting</h4>
+      <p>Final report is generated, applying any allowlist entries and comparing against baseline if provided.</p>
+
+      <h2 id="trust">Trust Model</h2>
+      <ul>
+        <li>Docker image is <strong>untrusted input</strong></li>
+        <li>Tool must <strong>never execute</strong> image contents</li>
+        <li>Analysis is <strong>read-only</strong></li>
+        <li>No network access during analysis</li>
+      </ul>
+
+      <div class="note">
+        <div class="note-title">Security</div>
+        <p>bsuppla performs static inspection only. It never executes any files from the analyzed image, making it safe to scan potentially malicious images. However, always run in an isolated environment as a defense-in-depth measure.</p>
+      </div>
+
+      <h2 id="threats">Threats Addressed</h2>
+      <p>bsuppla is designed to detect the following threat categories:</p>
+      
+      <h3>Supply-Chain Attacks</h3>
+      <ul>
+        <li>Backdoored base images</li>
+        <li>Compromised dependencies embedded in images</li>
+        <li>Trojaned binaries</li>
+      </ul>
+
+      <h3>Obfuscation</h3>
+      <ul>
+        <li>Packed or encrypted binaries</li>
+        <li>Stripped executables</li>
+        <li>Static binaries that bypass dynamic analysis</li>
+      </ul>
+
+      <h3>Covert Execution</h3>
+      <ul>
+        <li>Hidden executables in dotfiles</li>
+        <li>Executables in unusual locations</li>
+        <li>Startup scripts in init/rc/cron</li>
+      </ul>
+
+      <h3>Credential Theft</h3>
+      <ul>
+        <li>Exposed private keys</li>
+        <li>SSH authorized keys</li>
+        <li>Credential files (.env, .aws, .docker)</li>
+        <li>Insecure /etc/shadow</li>
+      </ul>
+
+      <h3>Cryptocurrency Mining</h3>
+      <ul>
+        <li>Known miner binaries</li>
+        <li>Mining pool configurations</li>
+      </ul>
+
+    </div>
+
+    <footer class="footer">
+      <p>bsuppla &copy; 2024. Released under MIT License.</p>
+    </footer>
+  </main>
+
+  <script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      const currentTheme = html.getAttribute('data-theme');
+      const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+      html.setAttribute('data-theme', newTheme === 'dark' ? '' : 'light');
+      localStorage.setItem('theme', newTheme);
+    }
+    
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  </script>
+</body>
+</html>
