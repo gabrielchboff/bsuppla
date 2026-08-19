@@ -1,11 +1,36 @@
+//! Built-in detectors — the extension surface of the scanner.
+//!
+//! Each file owns one signal category and exports unit-testable detectors.
+//! `default_registry` is the single assembly point: activating a detector
+//! costs exactly one line below. See `docs/DEVELOPMENT.md` for the recipe.
+
 pub mod credentials;
 pub mod elf;
 pub mod package_managers;
 pub mod permissions;
 pub mod risky;
 
-use crate::detector::DetectorRegistry;
+use crate::core::DetectorRegistry;
 
+/// Registry with every built-in detector.
+///
+/// ⬇️ TO ADD A NEW SIGNAL, ADD ONE LINE BELOW ⬇️
+///
+/// Simple path/filename signal:
+/// ```ignore
+/// registry.register(Box::new(PathRule::new(
+///     "my_signal_name",                       // finding kind (also used in allowlist/baseline files)
+///     Severity::High,                         // Critical | High | Medium | Low
+///     "why it's suspicious",                  // printed detail
+///     |ctx| ctx.normalized_path() == "/etc/thing", // match predicate
+/// )));
+/// ```
+///
+/// A signal that inspects file contents: implement
+/// [`crate::core::Detector`] (see `elf.rs` for an example), then:
+/// ```ignore
+/// registry.register(Box::new(my_module::MyDetector));
+/// ```
 pub fn default_registry() -> DetectorRegistry {
     let mut registry = DetectorRegistry::new();
 
@@ -17,7 +42,7 @@ pub fn default_registry() -> DetectorRegistry {
 
     registry.register(Box::new(elf::ElfAnalyzerDetector));
 
-    registry.register(Box::new(credentials::AuthorizedKeysDetector));
+    registry.register(Box::new(credentials::authorized_keys_rule()));
     registry.register(Box::new(credentials::PrivateKeyDetector));
     registry.register(Box::new(credentials::CredentialFileDetector));
 
@@ -28,7 +53,15 @@ pub fn default_registry() -> DetectorRegistry {
 
     registry.register(Box::new(risky::RiskyToolDetector));
     registry.register(Box::new(risky::CryptoMinerDetector));
-    registry.register(Box::new(risky::StartupScriptDetector));
+    registry.register(Box::new(risky::startup_script_rule()));
+
+    // Example of a zero-boilerplate detector: uncomment to enable.
+    // registry.register(Box::new(PathRule::new(
+    //     "docker_socket_present",
+    //     crate::core::Severity::Critical,
+    //     "docker socket exposed",
+    //     |ctx| ctx.normalized_path() == "/var/run/docker.sock",
+    // )));
 
     registry
 }
@@ -36,7 +69,7 @@ pub fn default_registry() -> DetectorRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::detector::{Detector, FileContext};
+    use crate::core::{Detector, FileContext};
     use std::path::PathBuf;
 
     #[test]
@@ -62,7 +95,7 @@ mod tests {
     fn registry_detects_suid_file() {
         let mut registry = DetectorRegistry::new();
         registry.register(Box::new(permissions::SuidSgidDetector));
-        
+
         let path = PathBuf::from("/bin/test");
         let rel_path = PathBuf::from("/bin/test");
         let ctx = FileContext {
@@ -75,7 +108,7 @@ mod tests {
             is_suid: true,
             is_sgid: false,
         };
-        
+
         let findings = registry.detect(&ctx);
         assert!(!findings.is_empty());
     }
@@ -104,7 +137,7 @@ mod tests {
         let mut registry = DetectorRegistry::new();
         registry.register(Box::new(permissions::SuidSgidDetector));
         registry.register(Box::new(permissions::WorldWritableExecutableDetector));
-        
+
         let path = PathBuf::from("/tmp/script");
         let rel_path = PathBuf::from("/tmp/script");
         let ctx = FileContext {
@@ -117,7 +150,7 @@ mod tests {
             is_suid: true,
             is_sgid: false,
         };
-        
+
         let findings = registry.detect(&ctx);
         assert!(findings.len() >= 2);
     }

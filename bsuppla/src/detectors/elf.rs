@@ -4,7 +4,7 @@ use std::path::Path;
 
 use goblin::elf::Elf;
 
-use crate::detector::{Detector, FileContext, Finding, Severity};
+use crate::core::{Detector, FileContext, Finding, Severity};
 
 pub struct ElfAnalyzerDetector;
 
@@ -52,7 +52,10 @@ impl Detector for ElfAnalyzerDetector {
         if findings.is_empty() {
             None
         } else {
-            let kind = if findings.iter().any(|f| f.contains("stripped") || f.contains("static") || f.contains("suspicious")) {
+            let kind = if findings
+                .iter()
+                .any(|f| f.contains("stripped") || f.contains("static") || f.contains("suspicious"))
+            {
                 "elf_suspicious"
             } else {
                 "elf_in_unusual_location"
@@ -63,7 +66,11 @@ impl Detector for ElfAnalyzerDetector {
                 kind,
                 ctx.relative_path.clone(),
                 detail,
-                if kind == "elf_suspicious" { Severity::Medium } else { Severity::Low },
+                if kind == "elf_suspicious" {
+                    Severity::Medium
+                } else {
+                    Severity::Low
+                },
             ))
         }
     }

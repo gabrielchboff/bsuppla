@@ -1,29 +1,13 @@
-use crate::detector::{Detector, FileContext, Finding, Severity};
+use crate::core::{Detector, FileContext, Finding, PathRule, Severity};
 
-pub struct AuthorizedKeysDetector;
-
-impl Detector for AuthorizedKeysDetector {
-    fn name(&self) -> &'static str {
-        "authorized_keys_present"
-    }
-
-    fn severity(&self) -> Severity {
-        Severity::Medium
-    }
-
-    fn detect(&self, ctx: &FileContext) -> Option<Finding> {
-        let norm = ctx.normalized_path();
-        if norm.ends_with("/.ssh/authorized_keys") {
-            Some(Finding::new(
-                "authorized_keys_present",
-                ctx.relative_path.clone(),
-                "ssh keys can allow access".to_string(),
-                self.severity(),
-            ))
-        } else {
-            None
-        }
-    }
+/// Rule-based detector: any `~/.ssh/authorized_keys` file.
+pub fn authorized_keys_rule() -> PathRule {
+    PathRule::new(
+        "authorized_keys_present",
+        Severity::Medium,
+        "ssh keys can allow access",
+        |ctx| ctx.normalized_path().ends_with("/.ssh/authorized_keys"),
+    )
 }
 
 pub struct PrivateKeyDetector;
@@ -129,8 +113,8 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
-    fn authorized_keys_detector_finds_authorized_keys() {
-        let detector = AuthorizedKeysDetector;
+    fn authorized_keys_rule_finds_authorized_keys() {
+        let rule = authorized_keys_rule();
         let path_buf = PathBuf::from("/root/.ssh/authorized_keys");
         let rel_path = PathBuf::from("/root/.ssh/authorized_keys");
         let ctx = FileContext {
@@ -143,14 +127,14 @@ mod tests {
             is_suid: false,
             is_sgid: false,
         };
-        let result = detector.detect(&ctx);
+        let result = rule.detect(&ctx);
         assert!(result.is_some());
         assert_eq!(result.unwrap().kind, "authorized_keys_present");
     }
 
     #[test]
-    fn authorized_keys_detector_ignores_other_files() {
-        let detector = AuthorizedKeysDetector;
+    fn authorized_keys_rule_ignores_other_files() {
+        let rule = authorized_keys_rule();
         let path_buf = PathBuf::from("/root/.ssh/known_hosts");
         let rel_path = PathBuf::from("/root/.ssh/known_hosts");
         let ctx = FileContext {
@@ -163,7 +147,7 @@ mod tests {
             is_suid: false,
             is_sgid: false,
         };
-        let result = detector.detect(&ctx);
+        let result = rule.detect(&ctx);
         assert!(result.is_none());
     }
 
@@ -324,6 +308,6 @@ mod tests {
     fn credential_severity_is_critical() {
         assert_eq!(PrivateKeyDetector.severity(), Severity::Critical);
         assert_eq!(CredentialFileDetector.severity(), Severity::Critical);
-        assert_eq!(AuthorizedKeysDetector.severity(), Severity::Medium);
+        assert_eq!(authorized_keys_rule().severity(), Severity::Medium);
     }
 }

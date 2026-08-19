@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::fs::File;
 use tar::Archive;
 
-use crate::error::{Result, err};
+use crate::error::{Error, Result};
 
 /// Verify that all layers listed in the manifest exist in image.tar
 pub fn locate_layers(image_path: &str, layer_paths: &[String]) -> Result<Vec<String>> {
@@ -21,7 +21,7 @@ pub fn locate_layers(image_path: &str, layer_paths: &[String]) -> Result<Vec<Str
 
     for layer in layer_paths {
         if !available.contains(layer) {
-            return Err(err(format!("Layer not found in image: {layer}")));
+            return Err(Error::Image(format!("Layer not found in image: {layer}")));
         }
     }
 

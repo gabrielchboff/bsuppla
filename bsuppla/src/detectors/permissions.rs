@@ -1,4 +1,4 @@
-use crate::detector::{Detector, FileContext, Finding, Severity};
+use crate::core::{Detector, FileContext, Finding, Severity};
 
 pub struct SuidSgidDetector;
 

@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::Read;
 use tar::Archive;
 
-use crate::error::{Result, err};
+use crate::error::{Error, Result};
 
 /// Extract manifest.json from a Docker image tar
 pub fn read_manifest_from_image(image_path: &str) -> Result<String> {
@@ -21,5 +21,5 @@ pub fn read_manifest_from_image(image_path: &str) -> Result<String> {
         }
     }
 
-    Err(err("manifest.json not found in image"))
+    Err(Error::Image("manifest.json not found in image".to_string()))
 }

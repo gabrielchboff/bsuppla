@@ -16,7 +16,8 @@ cd bsuppla/bsuppla
 cargo run -- alpine:latest alpine.tar
 ```
 
-See `USAGE.md` for the full guide.
+See `USAGE.md` for the full guide. See `docs/DEVELOPMENT.md` for how the
+code is organized and how to add new detectors.
 
 **Requirements**
 - Rust toolchain (stable)

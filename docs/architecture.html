@@ -111,15 +111,28 @@
 
       <div class="component-diagram">
         <pre><code>bsuppla/
-├── main.rs              # Entry point and orchestration
-├── image.rs             # Docker image tar parsing
-├── layers.rs            # OCI layer extraction
-├── fs.rs                # Filesystem reconstruction
-├── manifest.rs          # Image manifest parsing
-├── scanner.rs           # Analysis orchestration
-├── detector.rs          # Core trait definitions
-└── detectors/           # Detection plugins
-    ├── mod.rs          # Registry and composition
+├── main.rs              # Bin entry point (config -> pipeline)
+├── lib.rs               # Module map / public API
+├── core.rs              # Extension API: Severity, Finding, FileContext,
+│                        #   Detector trait, DetectorRegistry, PathRule
+├── error.rs             # Typed error enum
+├── config.rs            # CLI args + BSUPPLA_* env vars -> Config
+├── pipeline.rs          # Stage orchestration (composition root)
+├── ingest/              # Input domain
+│   ├── mod.rs          # Re-exports
+│   ├── docker.rs      # docker pull / save
+│   ├── image.rs       # manifest.json extraction from image tar
+│   ├── manifest.rs    # Manifest parsing
+│   ├── layers.rs      # Layer verification
+│   └── extract.rs     # Filesystem reconstruction
+├── scan/                # Analysis domain
+│   ├── mod.rs          # Re-exports
+│   ├── scanner.rs      # Walk + detector registry execution
+│   ├── allowlist.rs    # Known-safe finding suppression
+│   ├── baseline.rs     # Baseline load / diff / export
+│   └── report.rs       # Output + suspicion level
+└── detectors/           # Detection plugins (extension surface)
+    ├── mod.rs          # default_registry() — assembly point
     ├── permissions.rs  # Permission-based detection
     ├── elf.rs          # ELF binary analysis
     ├── credentials.rs  # Credential detection
@@ -140,29 +153,59 @@
         </thead>
         <tbody>
           <tr>
-            <td><code>image.rs</code></td>
+            <td><code>core.rs</code></td>
+            <td>Shared domain model and extension API</td>
+            <td><code>Detector</code> trait, <code>DetectorRegistry</code>, <code>PathRule</code>, <code>Finding</code></td>
+          </tr>
+          <tr>
+            <td><code>config.rs</code></td>
+            <td>CLI + environment configuration</td>
+            <td><code>Config::from_args()</code></td>
+          </tr>
+          <tr>
+            <td><code>pipeline.rs</code></td>
+            <td>Wires ingest + scan stages together</td>
+            <td><code>run(&amp;Config)</code></td>
+          </tr>
+          <tr>
+            <td><code>ingest/docker.rs</code></td>
+            <td>docker pull / docker save</td>
+            <td><code>pull()</code>, <code>save()</code></td>
+          </tr>
+          <tr>
+            <td><code>ingest/image.rs</code></td>
             <td>Parse Docker image tar archives</td>
             <td><code>read_manifest_from_image()</code></td>
           </tr>
           <tr>
-            <td><code>layers.rs</code></td>
+            <td><code>ingest/layers.rs</code></td>
             <td>Verify layer existence in tar</td>
             <td><code>locate_layers()</code></td>
           </tr>
           <tr>
-            <td><code>fs.rs</code></td>
+            <td><code>ingest/extract.rs</code></td>
             <td>Extract and reconstruct filesystem</td>
             <td><code>build_filesystem()</code></td>
           </tr>
           <tr>
-            <td><code>scanner.rs</code></td>
-            <td>Orchestrate analysis pipeline</td>
+            <td><code>scan/scanner.rs</code></td>
+            <td>Walk filesystem, run detector registry</td>
             <td><code>scan_filesystem()</code></td>
           </tr>
           <tr>
-            <td><code>detector.rs</code></td>
-            <td>Define detector trait and types</td>
-            <td><code>Detector</code> trait, <code>Finding</code></td>
+            <td><code>scan/allowlist.rs</code></td>
+            <td>Suppress known-safe findings</td>
+            <td><code>load_allowlist()</code></td>
+          </tr>
+          <tr>
+            <td><code>scan/baseline.rs</code></td>
+            <td>Baseline load / diff / export</td>
+            <td><code>load_baseline()</code></td>
+          </tr>
+          <tr>
+            <td><code>scan/report.rs</code></td>
+            <td>Text output + suspicion level</td>
+            <td><code>report_findings()</code></td>
           </tr>
           <tr>
             <td><code>detectors/</code></td>
@@ -178,7 +221,7 @@
 
       <h3>3.1 Core Traits</h3>
 
-      <pre><code>// detector.rs
+      <pre><code>// core.rs
 
 pub trait Detector: Send + Sync {
     fn name(&self) -> &'static str;
@@ -228,7 +271,20 @@ pub enum Severity {
     Low,        // Score: 2
 }</code></pre>
 
-      <h3>3.4 Detector Categories</h3>
+      <h3>3.4 Rule-Based Detectors</h3>
+
+      <p>Most simple signals (a file matching a path/name pattern) need no
+      struct and no trait impl. <code>PathRule</code> pairs a finding rule
+      with a predicate — one line, directly in <code>default_registry()</code>:</p>
+
+      <pre><code>registry.register(Box::new(PathRule::new(
+    "docker_socket_present",
+    Severity::Critical,
+    "docker socket exposed",
+    |ctx| ctx.normalized_path() == "/var/run/docker.sock",
+)));</code></pre>
+
+      <h3>3.5 Detector Categories</h3>
 
       <table>
         <thead>
@@ -273,55 +329,59 @@ pub enum Severity {
 
       <div class="diagram">
         <pre><code>+------------------------+     +------------------------+
-| Docker Image (.tar)   |---->| Image Loader           |
-| Untrusted Input       |     | manifest.json parsing  |
-+------------------------+     +-----------+------------+
-                                        |
-                                        v
-                        +------------------------+
-                        | Layer Verification    |
-                        | locate_layers()       |
-                        +-----------+------------+
-                                        |
-                                        v
-                        +------------------------+
-                        | Filesystem Build      |
-                        | layer.tar extraction  |
-                        +-----------+------------+
-                                        |
-                                        v
-                        +------------------------+
-                        | Scanner               |
-                        | walk_dir()            |
-                        +-----------+------------+
-                                        |
-                                        v
-                        +------------------------+
-                        | Detector Registry      |
-                        | ctx = FileContext      |
-                        | findings = detect(ctx)|
-                        +-----------+------------+
-                                        |
-                                        v
-                        +------------------------+
-                        | Report Generator       |
-                        | Filtering & Scoring   |
-                        +------------------------+</code></pre>
+| Docker Image (.tar)    |     | Acquire (optional)     |
+| Untrusted Input        |     | pipeline.rs -> docker  |
+|                        |     | pull + save            |
++-----------+------------+     +-----------+------------+
+            |                            |
+            v                            v
++------------------------------------------+
+| ingest/                                  |
+| image.rs   manifest.json parsing         |
+| manifest.rs manifest model               |
+| layers.rs  locate_layers()  verification |
+| extract.rs filesystem reconstruction     |
++---------------------+--------------------+
+                      |
+                      v
++------------------------------------------+
+| scan/scanner.rs     walk_dir()           |
+| registry built once, passed down walk    |
++---------------------+--------------------+
+                      |
+                      v
++------------------------------------------+
+| detectors/          ctx = FileContext    |
+| default_registry()  findings = detect()  |
++---------------------+--------------------+
+                      |
+                      v
++------------------------------------------+
+| scan/ allowlist + baseline filtering     |
+| scan/report.rs  output + suspicion level |
++------------------------------------------+</code></pre>
       </div>
 
       <h3>4.1 Stage Details</h3>
 
+      <h4>Stage 0: Acquisition (optional)</h4>
+      <p><code>pipeline.rs</code> calls <code>docker pull</code> and
+      <code>docker save</code> to produce the image tar. Skippable via
+      <code>BSUPPLA_SKIP_DOCKER</code> when scanning an existing tar.</p>
+
       <h4>Stage 1: Image Loading</h4>
-      <p>Parses the Docker image tar archive using the <code>tar</code> crate. Extracts <code>manifest.json</code> to identify layer paths.</p>
+      <p>Parses the Docker image tar archive using the <code>tar</code> crate (<code>ingest/image.rs</code>). Extracts <code>manifest.json</code> to identify layer paths.</p>
 
       <h4>Stage 2: Layer Verification</h4>
-      <p>Verifies all referenced layers exist in the tar archive. Returns error if any layer is missing.</p>
+      <p><code>ingest/layers.rs</code> verifies all referenced layers exist in the tar archive. Returns error if any layer is missing.</p>
 
       <h4>Stage 3: Filesystem Reconstruction</h4>
-      <p>Extracts each layer's <code>layer.tar</code> in order. Later layers override earlier ones. Handles whiteout files (markers for deleted files).</p>
+      <p><code>ingest/extract.rs</code> extracts each layer's <code>layer.tar</code> in order. Later layers override earlier ones.</p>
 
       <h4>Stage 4: Directory Traversal</h4>
-      <p>Recursively walks the reconstructed filesystem. For each file:</p>
+      <p><code>scan/scanner.rs</code> builds a single <code>DetectorRegistry</code>
+      (from <code>detectors::default_registry()</code>) and recursively walks
+      the reconstructed filesystem. For each file:</p>
       <ul>
         <li>Collects file metadata (permissions, size, type)</li>
         <li>Builds <code>FileContext</code></li>
@@ -330,7 +390,10 @@ pub enum Severity {
       </ul>
 
       <h4>Stage 5: Report Generation</h4>
-      <p>Applies allowlist filtering, baseline comparison, and severity scoring. Outputs findings with suspicion level.</p>
+      <p><code>scan/report.rs</code> applies allowlist filtering
+      (<code>scan/allowlist.rs</code>), baseline comparison
+      (<code>scan/baseline.rs</code>), and severity scoring. Outputs findings
+      with suspicion level.</p>
 
       <h2 id="trust-model">5. Trust Model</h2>
 
@@ -376,9 +439,22 @@ pub enum Severity {
 
       <h2 id="extensibility">6. Extensibility</h2>
 
-      <p>Adding new detection capabilities requires implementing the <code>Detector</code> trait:</p>
+      <p>Two ways to add a signal, both closed against modification of the
+      scanning machinery (<code>scan/</code>, <code>core.rs</code>).</p>
 
-      <pre><code>use crate::detector::{Detector, FileContext, Finding, Severity};
+      <h3>6.1 Simple path/name signal — one line</h3>
+
+      <pre><code>// In detectors/mod.rs, inside default_registry():
+registry.register(Box::new(PathRule::new(
+    "docker_socket_present",      // finding kind (allowlist/baseline key)
+    Severity::Critical,           // Critical | High | Medium | Low
+    "docker socket exposed",      // report detail
+    |ctx| ctx.normalized_path() == "/var/run/docker.sock",
+)));</code></pre>
+
+      <h3>6.2 Signal that inspects file contents — custom Detector</h3>
+
+      <pre><code>use crate::core::{Detector, FileContext, Finding, Severity};
 
 pub struct MyCustomDetector;
 
@@ -388,8 +464,8 @@ impl Detector for MyCustomDetector {
     }
 
     fn detect(&self, ctx: &FileContext) -> Option&lt;Finding&gt; {
-        // Custom detection logic
-        if ctx.is_executable &amp;&amp; /* ... */ {
+        // Custom detection logic (ctx.path = real path, read bytes)
+        if ctx.normalized_path().ends_with("/etc/thing") {
             Some(Finding::new(
                 "my_custom_detection",
                 ctx.relative_path.clone(),
@@ -402,15 +478,27 @@ impl Detector for MyCustomDetector {
     }
 }</code></pre>
 
-      <p>Register the detector:</p>
+      <p>Register it (plus the module declaration at the top of
+      <code>detectors/mod.rs</code>):</p>
 
       <pre><code>// In detectors/mod.rs
+pub mod my_custom;
+
 pub fn default_registry() -> DetectorRegistry {
     let mut registry = DetectorRegistry::new();
     // ... existing detectors ...
     registry.register(Box::new(my_custom::MyCustomDetector));
     registry
 }</code></pre>
+
+      <p>Because every type (<code>Detector</code>, <code>DetectorRegistry</code>,
+      <code>PathRule</code>, all detector structs/factories) is public,
+      custom registry composition never requires modifying the crate:
+      build your own registry from <code>bsuppla::core</code> +
+      <code>bsuppla::detectors</code>.</p>
+
+      <p>Full recipes with copy-paste examples live in
+      <code>docs/DEVELOPMENT.md</code>.</p>
 
       <h2>7. Conclusions</h2>
       <p>The bsuppla architecture provides:</p>

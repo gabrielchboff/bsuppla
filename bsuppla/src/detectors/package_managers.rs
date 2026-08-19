@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-use crate::detector::{Detector, FileContext, Finding, Severity};
+use crate::core::{Detector, FileContext, Finding, Severity};
 
 pub struct PackageManagerConfigDetector;
 

@@ -1,4 +1,4 @@
-use crate::detector::{Detector, FileContext, Finding, Severity};
+use crate::core::{Detector, FileContext, Finding, PathRule, Severity};
 
 pub struct RiskyToolDetector;
 
@@ -68,37 +68,22 @@ impl Detector for CryptoMinerDetector {
     }
 }
 
-pub struct StartupScriptDetector;
-
-impl Detector for StartupScriptDetector {
-    fn name(&self) -> &'static str {
-        "startup_script_present"
-    }
-
-    fn severity(&self) -> Severity {
-        Severity::Low
-    }
-
-    fn detect(&self, ctx: &FileContext) -> Option<Finding> {
-        let norm = ctx.normalized_path();
-
-        if norm.starts_with("/etc/init.d/")
-            || norm.starts_with("/etc/rc")
-            || norm.starts_with("/etc/cron.")
-            || norm.starts_with("/etc/cron/")
-            || norm.starts_with("/var/spool/cron")
-            || norm == "/etc/crontab"
-        {
-            Some(Finding::new(
-                "startup_script_present",
-                ctx.relative_path.clone(),
-                "init/rc/cron".to_string(),
-                self.severity(),
-            ))
-        } else {
-            None
-        }
-    }
+/// Rule-based detector: files in init/rc/cron startup locations.
+pub fn startup_script_rule() -> PathRule {
+    PathRule::new(
+        "startup_script_present",
+        Severity::Low,
+        "init/rc/cron",
+        |ctx| {
+            let norm = ctx.normalized_path();
+            norm.starts_with("/etc/init.d/")
+                || norm.starts_with("/etc/rc")
+                || norm.starts_with("/etc/cron.")
+                || norm.starts_with("/etc/cron/")
+                || norm.starts_with("/var/spool/cron")
+                || norm == "/etc/crontab"
+        },
+    )
 }
 
 #[cfg(test)]
@@ -223,8 +208,8 @@ mod tests {
     }
 
     #[test]
-    fn startup_script_detector_finds_initd() {
-        let detector = StartupScriptDetector;
+    fn startup_script_rule_finds_initd() {
+        let rule = startup_script_rule();
         let path_buf = PathBuf::from("/etc/init.d/docker");
         let rel_path = PathBuf::from("/etc/init.d/docker");
         let ctx = FileContext {
@@ -237,14 +222,14 @@ mod tests {
             is_suid: false,
             is_sgid: false,
         };
-        let result = detector.detect(&ctx);
+        let result = rule.detect(&ctx);
         assert!(result.is_some());
         assert_eq!(result.unwrap().kind, "startup_script_present");
     }
 
     #[test]
-    fn startup_script_detector_finds_cron() {
-        let detector = StartupScriptDetector;
+    fn startup_script_rule_finds_cron() {
+        let rule = startup_script_rule();
         let path_buf = PathBuf::from("/var/spool/cron/root");
         let rel_path = PathBuf::from("/var/spool/cron/root");
         let ctx = FileContext {
@@ -257,13 +242,13 @@ mod tests {
             is_suid: false,
             is_sgid: false,
         };
-        let result = detector.detect(&ctx);
+        let result = rule.detect(&ctx);
         assert!(result.is_some());
     }
 
     #[test]
-    fn startup_script_detector_finds_crontab() {
-        let detector = StartupScriptDetector;
+    fn startup_script_rule_finds_crontab() {
+        let rule = startup_script_rule();
         let path_buf = PathBuf::from("/etc/crontab");
         let rel_path = PathBuf::from("/etc/crontab");
         let ctx = FileContext {
@@ -276,13 +261,13 @@ mod tests {
             is_suid: false,
             is_sgid: false,
         };
-        let result = detector.detect(&ctx);
+        let result = rule.detect(&ctx);
         assert!(result.is_some());
     }
 
     #[test]
-    fn startup_script_detector_ignores_normal_files() {
-        let detector = StartupScriptDetector;
+    fn startup_script_rule_ignores_normal_files() {
+        let rule = startup_script_rule();
         let path_buf = PathBuf::from("/etc/passwd");
         let rel_path = PathBuf::from("/etc/passwd");
         let ctx = FileContext {
@@ -295,7 +280,7 @@ mod tests {
             is_suid: false,
             is_sgid: false,
         };
-        let result = detector.detect(&ctx);
+        let result = rule.detect(&ctx);
         assert!(result.is_none());
     }
 
@@ -303,6 +288,6 @@ mod tests {
     fn risky_severity_values() {
         assert_eq!(CryptoMinerDetector.severity(), Severity::Critical);
         assert_eq!(RiskyToolDetector.severity(), Severity::Low);
-        assert_eq!(StartupScriptDetector.severity(), Severity::Low);
+        assert_eq!(startup_script_rule().severity(), Severity::Low);
     }
 }
